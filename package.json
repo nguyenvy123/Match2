@@ -1,0 +1,15 @@
+{
+  "name": "match-2",
+  "version": "1.0.0",
+  "description": "Trò chơi suy luận và trí nhớ: tìm ra ly nào nằm ở ô nào",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node src/game.test.js",
+    "test:ui": "node test/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

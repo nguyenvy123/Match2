@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Match 2</title>
+  <meta name="description" content="Trò chơi suy luận: tìm ra ly nào nằm ở ô nào.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="src/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M8,5 L24,6 L21,23 L11,22 Z' fill='%23EE5742' stroke='%23000' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import { mountGame } from './src/ui.js';
+    mountGame(document.getElementById('root'));
+  </script>
+</body>
+</html>

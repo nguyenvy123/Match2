@@ -1,0 +1,1115 @@
+/**
+ * MATCH 2 — stylesheet.
+ * Theo docs/art-style.md. Nguyên tắc: không gradient, không box-shadow mềm,
+ * không bo góc đều. Hình dạng chính vẽ bằng SVG path lệch tay, không dùng border.
+ */
+
+/* ---------- Tokens ---------- */
+
+:root {
+  /* Nền tảng */
+  --ink: #000000;
+  --paper: #ffffff;
+  --paper-alt: #fafafa;
+  --grey-light: #c5c5c5;
+  --grey-mid: #adadad;
+  --grey-dark: #6c6c6c;
+
+  /* Ly — trích từ ảnh tham chiếu, xem art-style.md mục 2.2 */
+  --cup-a: #ee5742;
+  --cup-b: #3c53a1;
+  --cup-c: #f8d867;
+  --cup-d: #6acada;
+  --cup-e: #db5ca1;
+  --cup-f: #f2934a;
+  --cup-g: #7fbf6a;
+
+  --verdict-one: #7fbf6a;
+  --verdict-no: #ee5742;
+
+  /* Nét */
+  --stroke-heavy: 4;
+  --stroke-normal: 3;
+  --stroke-light: 2;
+
+  /* Chữ */
+  --font-display: 'Amatic SC', 'Comic Sans MS', cursive;
+  --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --text-title: clamp(2.5rem, 1.5rem + 5vw, 5rem);
+  --text-verdict: clamp(2rem, 1.2rem + 4vw, 3.6rem);
+  --text-round: clamp(1.4rem, 1rem + 2vw, 2.2rem);
+  --text-label: clamp(1.05rem, 0.9rem + 0.8vw, 1.45rem);
+  --text-body: 1rem;
+
+  /* Nhịp — cố ý không đều, xem art-style.md mục 7.1 */
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1.25rem;
+  --space-lg: 2rem;
+  --space-xl: 3.5rem;
+
+  /* Chuyển động */
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-instant: 120ms;
+  --dur-fast: 200ms;
+  --dur-normal: 320ms;
+
+  --cup-w: clamp(58px, 8vw, 86px);
+}
+
+* { box-sizing: border-box; }
+
+/* [hidden] phải thắng mọi display của class bên dưới */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* bàn round 5 cuộn trong container riêng, body không bao giờ cuộn ngang */
+}
+
+body {
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Hạt giấy — opacity phải ≤ 0.04, cao hơn là bẩn màn hình */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-md) var(--space-lg);
+}
+
+/* Chữ viết tay chỉ đẹp khi in hoa, và cần cỡ lớn hơn thường vì hẹp ngang */
+.hand {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.05;
+}
+
+/* ---------- Thanh trạng thái ---------- */
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-sm);
+}
+
+.brand {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: clamp(1.8rem, 1.2rem + 2.4vw, 3rem);
+  line-height: 0.9;
+  margin: 0;
+  width: fit-content;
+}
+
+/* Gạch chân là con của .brand__name, không phải của .brand — nếu để ngang hàng
+   thì nó tự chiếm chỗ và làm .brand rộng ra, rồi `width: 100%` lại đo theo
+   chiều rộng đó: một vòng lặp tự tham chiếu khiến nét gạch luôn dài hơn chữ. */
+.brand__name {
+  display: block;
+  position: relative;
+  width: fit-content;
+}
+
+.brand__underline {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 100%;
+  height: 12px;
+  overflow: visible;
+}
+
+.stats {
+  display: flex;
+  gap: var(--space-md);
+  align-items: baseline;
+}
+
+.stats .btn--small { align-self: center; }
+
+.stat {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-round);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.stat__value {
+  font-weight: 700;
+  font-size: 1.25em;
+}
+
+/* ---------- Bàn chơi ---------- */
+
+.table-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0 var(--space-md);
+  min-height: 30vh;
+}
+
+/* Round 5 có 7 ô — trên màn hẹp cuộn ngang ở đây, không phải ở body.
+   `display: flex` + `justify-content: center` trên chính container cuộn là
+   cách duy nhất căn giữa được nội dung rộng hơn khung mà vẫn cuộn đúng;
+   `margin: auto` trên con bị hỏng khi nội dung tràn. */
+.table-scroll {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: var(--space-sm) var(--space-xs) var(--space-md);
+  scrollbar-width: thin;
+}
+
+.table {
+  display: flex;
+  gap: clamp(var(--space-xs), 2vw, var(--space-lg));
+  margin: 0 auto;
+}
+
+.slot {
+  position: relative;
+  width: calc(var(--cup-w) * 1.28);
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.slot:disabled { cursor: default; }
+
+.slot__frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1.32;
+  display: grid;
+  place-items: center;
+}
+
+.slot__outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.slot__outline path {
+  fill: none;
+  stroke: var(--grey-mid);
+  stroke-width: var(--stroke-normal);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 9 7;
+  transition: stroke var(--dur-fast) var(--ease-out);
+}
+
+/* Ô đã chốt: khung mờ hẳn đi — chiếc ly nằm trong ô cùng nét gạch chéo ở góc
+   đã đủ nói lên trạng thái, thêm khung viền đậm chỉ làm rối mắt. */
+.slot[data-status='LOCKED'] .slot__outline path {
+  stroke: var(--verdict-one);
+  stroke-width: 2;
+  stroke-dasharray: none;
+  opacity: 0.45;
+}
+
+.slot:not(:disabled):hover .slot__outline path,
+.slot:not(:disabled):focus-visible .slot__outline path {
+  stroke: var(--ink);
+}
+
+.slot:not(:disabled):hover { transform: translateY(-3px); }
+
+.slot:focus-visible {
+  outline: 3px dashed var(--ink);
+  outline-offset: 6px;
+}
+
+/* Ô đang giữ ly chờ ghép cặp — nét liền đậm nhưng chưa dùng màu "đã chốt",
+   để không lẫn với ô đã nhận ONE. */
+.slot[data-armed='true'] .slot__outline path {
+  stroke: var(--ink);
+  stroke-width: var(--stroke-heavy);
+  stroke-dasharray: none;
+  opacity: 1;
+}
+
+/* Ly đang chờ hơi mờ và nghiêng nhẹ — tín hiệu "chưa chốt, còn kéo đi được" */
+.slot[data-armed='true'] .slot__cup {
+  opacity: 0.82;
+  transform: rotate(-2.5deg);
+  animation: held-settle var(--dur-normal) var(--ease-bounce);
+}
+
+.slot[data-armed='true'] { cursor: grab; }
+
+@keyframes held-settle {
+  0%   { transform: translateY(-14px) rotate(-7deg); opacity: 0; }
+  60%  { transform: translateY(3px) rotate(-1deg); opacity: 0.82; }
+  100% { transform: translateY(0) rotate(-2.5deg); opacity: 0.82; }
+}
+
+.slot__index {
+  font-family: var(--font-display);
+  font-size: var(--text-label);
+  color: var(--grey-dark);
+  letter-spacing: 0.08em;
+}
+
+.slot__ghost {
+  font-family: var(--font-display);
+  font-size: calc(var(--cup-w) * 0.5);
+  color: var(--grey-light);
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-bounce);
+}
+
+.slot__cup {
+  width: 74%;
+  height: auto;
+}
+
+/* Nét đánh dấu "đã xong" ở góc ô đã khóa */
+.slot__ticks {
+  position: absolute;
+  bottom: 4%;
+  left: 6%;
+  width: 22%;
+  height: 18%;
+  overflow: visible;
+  opacity: 0.55;
+}
+
+.slot__ticks path {
+  fill: none;
+  stroke: var(--verdict-one);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+/* ---------- Ly ---------- */
+
+.cup {
+  display: block;
+  overflow: visible;
+}
+
+.cup__fill { stroke: none; }
+
+.cup__outline {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: var(--stroke-heavy);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Nét ngăn thân với cuống — mảnh hơn viền ngoài, như nét phụ vẽ sau */
+.cup__waist {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.cup__letter {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+/* ---------- Bảng phán xử ---------- */
+
+.verdicts {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: clamp(64px, 10vw, 96px);
+  align-items: center;
+}
+
+.verdict {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.5rem, 1.6vw, 1rem) clamp(1.4rem, 4vw, 2.8rem);
+  animation: verdict-pop var(--dur-normal) var(--ease-bounce);
+}
+
+.verdict__frame,
+.verdict__inner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.verdict__frame path {
+  fill: var(--paper);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.verdict__inner path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: var(--stroke-normal);
+  stroke-linejoin: round;
+}
+
+.verdict[data-kind='ONE'] .verdict__frame path { stroke: var(--verdict-one); }
+.verdict[data-kind='NO'] .verdict__frame path { stroke: var(--verdict-no); }
+
+.verdict__text {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: var(--text-verdict);
+  line-height: 1;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.verdict__slot {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: calc(var(--text-verdict) * 0.42);
+  letter-spacing: 0.06em;
+  color: var(--grey-dark);
+  margin-bottom: 0.1em;
+}
+
+@keyframes verdict-pop {
+  0%   { transform: scale(0.72) rotate(-3deg); opacity: 0; }
+  62%  { transform: scale(1.07) rotate(1.6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Rung khi NO — kèm xoay, không chỉ dịch ngang, mới ra cảm giác lắc đầu */
+@keyframes shake-no {
+  0%   { transform: translateX(0) rotate(0deg); }
+  20%  { transform: translateX(-8px) rotate(-3deg); }
+  40%  { transform: translateX(7px) rotate(2.5deg); }
+  60%  { transform: translateX(-5px) rotate(-1.8deg); }
+  80%  { transform: translateX(3px) rotate(1deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+.is-shaking { animation: shake-no 450ms var(--ease-out); }
+
+@keyframes drop-in {
+  0%   { transform: translateY(-26px) scale(1.08); opacity: 0; }
+  55%  { transform: translateY(4px) scale(0.97); opacity: 1; }
+  78%  { transform: translateY(-3px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.is-dropping { animation: drop-in var(--dur-normal) var(--ease-bounce); }
+
+/* ---------- Khay ly dự phòng ---------- */
+
+.tray {
+  border-top: none;
+  padding-top: var(--space-sm);
+  position: relative;
+}
+
+.tray__rule {
+  width: 100%;
+  height: 10px;
+  overflow: visible;
+  margin-bottom: var(--space-sm);
+}
+
+.tray__rule path {
+  fill: none;
+  stroke: var(--grey-light);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.tray__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+.tray__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--text-label);
+  margin: 0;
+  color: var(--grey-dark);
+}
+
+.tray__cups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(var(--space-xs), 2vw, var(--space-md));
+  justify-content: center;
+}
+
+.tray-cup {
+  position: relative;
+  width: var(--cup-w);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-bounce),
+              opacity var(--dur-fast) var(--ease-out),
+              filter var(--dur-fast) var(--ease-out);
+}
+
+.tray-cup:not(:disabled):hover { transform: translateY(-8px) rotate(-2.4deg) scale(1.05); }
+
+.tray-cup:focus-visible {
+  outline: 3px dashed var(--ink);
+  outline-offset: 5px;
+}
+
+.tray-cup[data-selected='true'] {
+  transform: translateY(-14px) rotate(1.6deg) scale(1.08);
+}
+
+.tray-cup[data-selected='true'] .cup__outline,
+.tray-cup[data-selected='true'] .cup__foot-outline {
+  stroke-width: 5.4;
+}
+
+.tray-cup[data-used='true'] {
+  opacity: 0.3;
+  filter: grayscale(0.7);
+  cursor: default;
+  transform: none;
+}
+
+/* Ly đang giữ trên ô — mờ nhưng giữ màu, vì nó chưa chốt, chỉ đang ở trên bàn */
+.tray-cup[data-held='true'] {
+  opacity: 0.34;
+  filter: none;
+}
+
+.tray-cup__strikes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tray-cup__strikes path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+/* Chữ cái đã in trên thân ly rồi — nhãn dưới đáy chỉ dành cho trình đọc màn hình */
+.tray-cup__key {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Nút & công tắc ---------- */
+
+.btn {
+  position: relative;
+  background: none;
+  border: none;
+  padding: 0.55em 1.5em;
+  cursor: pointer;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: var(--text-label);
+  font-weight: 700;
+  color: var(--ink);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.btn__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  z-index: -1;
+}
+
+.btn__bg path {
+  fill: var(--cup-c);
+  stroke: var(--ink);
+  stroke-width: var(--stroke-normal);
+  stroke-linejoin: round;
+}
+
+.btn--ghost .btn__bg path { fill: var(--paper); }
+
+/* Nút nhỏ trên thanh trạng thái — không được cạnh tranh thị giác với bàn chơi */
+.btn--small {
+  padding: 0.3em 0.9em;
+  font-size: calc(var(--text-label) * 0.82);
+  font-weight: 400;
+  color: var(--grey-dark);
+}
+
+.btn--small:not(:disabled):hover { color: var(--ink); }
+
+.btn:not(:disabled):hover { transform: translateY(-2px); }
+.btn:not(:disabled):hover .btn__bg path { stroke-width: 4; }
+.btn:not(:disabled):active { transform: translateY(1px); }
+
+.btn:focus-visible {
+  outline: 3px dashed var(--ink);
+  outline-offset: 4px;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Nhãn báo chế độ — Đặt đôi là bắt buộc từ round 3, không bấm được */
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: calc(var(--text-label) * 0.92);
+  color: var(--grey-dark);
+  padding: 0.22em 0.7em;
+  position: relative;
+}
+
+.mode-badge[data-active='true'] { color: var(--ink); }
+
+.mode-badge .toggle__bolt {
+  font-size: 1.15em;
+  line-height: 1;
+}
+
+/* Vùng ghép đôi — hiện khi đã chọn 1 cặp, chờ cặp thứ 2 */
+.pairing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--text-label);
+  margin-top: var(--space-sm);
+}
+
+.pairing__chip {
+  padding: 0.15em 0.7em;
+  background: var(--paper-alt);
+  outline: 2.5px solid var(--ink);
+  outline-offset: 0;
+}
+
+/* ---------- Kịch bản hoán đổi (round 6–7) ---------- */
+
+/* Ô đã có ly, chưa chốt — khung nét liền mảnh thay vì nét đứt, vì ô không
+   bao giờ trống ở kịch bản này. */
+.slot[data-status='FILLED'] .slot__outline path {
+  stroke: var(--grey-mid);
+  stroke-dasharray: none;
+}
+
+.slot[data-status='FILLED']:not(:disabled):hover .slot__outline path {
+  stroke: var(--ink);
+  stroke-width: var(--stroke-heavy);
+}
+
+/* Ô đang chọn để đổi chỗ — nhấc lên và nghiêng, như đang cầm trên tay */
+.slot[data-picked='true'] .slot__outline path {
+  stroke: var(--ink);
+  stroke-width: var(--stroke-heavy);
+  stroke-dasharray: none;
+}
+
+.slot[data-picked='true'] { transform: translateY(-10px); }
+
+.slot[data-picked='true'] .slot__cup {
+  transform: rotate(-3.5deg) scale(1.04);
+  animation: picked-wiggle 1.4s var(--ease-out) infinite;
+}
+
+@keyframes picked-wiggle {
+  0%, 100% { transform: rotate(-3.5deg) scale(1.04); }
+  50%      { transform: rotate(-1.5deg) scale(1.04); }
+}
+
+.slot[data-status='FILLED']:not(:disabled) { cursor: grab; }
+
+/* Bảng phán xử dạng số — to hơn bảng Đúng/Sai vì con số là toàn bộ thông tin */
+.verdict--count .verdict__text {
+  font-size: calc(var(--text-verdict) * 1.1);
+  color: var(--ink);
+}
+
+.verdict--count[data-kind='ONE'] .verdict__text { color: var(--verdict-one); }
+.verdict--count[data-kind='NO'] .verdict__text { color: var(--verdict-no); }
+.verdict--count[data-kind='PARTIAL'] .verdict__text { color: var(--ink); }
+
+.verdict__note {
+  position: relative;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: calc(var(--text-label) * 0.82);
+  color: var(--grey-dark);
+  margin-top: 0.1em;
+  text-align: center;
+}
+
+/* ---------- Thanh điều khiển hoán đổi ---------- */
+
+.swap-bar {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.swap-bar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.swap-bar__hint {
+  margin: 0;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-label);
+  color: var(--grey-dark);
+  flex: 1 1 12rem;
+}
+
+/* Bảng lịch sử các lượt đã thử. BẮT BUỘC phải có ở kịch bản này — phản hồi
+   chỉ là một con số, không thấy lại các lượt trước thì không suy luận được gì. */
+.swap-log {
+  border-top: none;
+  padding-top: var(--space-xs);
+}
+
+.swap-log__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: calc(var(--text-label) * 0.88);
+  color: var(--grey-dark);
+  margin: 0 0 0.35em;
+}
+
+.swap-log__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  max-height: 8.5rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.swap-log__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0.12em 0;
+  border-bottom: 2px dashed var(--grey-light);
+}
+
+.swap-log__turn {
+  font-family: var(--font-display);
+  font-size: calc(var(--text-label) * 0.82);
+  color: var(--grey-dark);
+  min-width: 2.1em;
+}
+
+.swap-log__cups {
+  display: flex;
+  gap: 0.22em;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.cup-chip {
+  display: grid;
+  place-items: center;
+  width: 1.55em;
+  height: 1.55em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(var(--text-label) * 0.85);
+  line-height: 1;
+  outline: 2px solid var(--ink);
+  outline-offset: -1px;
+}
+
+.swap-log__hits {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-label);
+  min-width: 2.6em;
+  text-align: right;
+  color: var(--ink);
+}
+
+.swap-log__hits[data-full='true'] { color: var(--verdict-one); }
+
+@media (max-width: 479px) {
+  .swap-log__list { max-height: 6.5rem; }
+  .cup-chip { width: 1.35em; height: 1.35em; }
+}
+
+/* ---------- Kéo thả ---------- */
+
+/* Bản sao chiếc ly bám theo con trỏ khi kéo */
+.drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  pointer-events: none;
+  will-change: transform;
+  filter: drop-shadow(2px 4px 0 rgba(0, 0, 0, 0.18));
+}
+
+.drag-ghost .cup { width: 100%; height: auto; }
+
+/* Trong lúc kéo: chặn bôi đen chữ và cuộn trang do cử chỉ cảm ứng */
+body.is-dragging {
+  user-select: none;
+  touch-action: none;
+  cursor: grabbing;
+}
+
+.tray-cup:not(:disabled) { cursor: grab; }
+.tray-cup[data-dragging='true'] { opacity: 0.25; }
+
+/* Ô đang được rê ly tới */
+.slot[data-hover='true'] .slot__outline path {
+  stroke: var(--ink);
+  stroke-width: var(--stroke-heavy);
+  stroke-dasharray: none;
+}
+
+.slot[data-hover='true'] { transform: translateY(-5px) scale(1.04); }
+
+.slot[data-hover='true'] .slot__ghost {
+  color: var(--grey-dark);
+  transform: scale(1.15);
+}
+
+/* ---------- Lớp phủ (hướng dẫn, kết quả) ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-md);
+  background: rgba(255, 255, 255, 0.93);
+  animation: fade-in var(--dur-normal) var(--ease-out);
+}
+
+.overlay[hidden] { display: none; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Khung vẽ tay nằm ở lớp riêng phía sau, còn nội dung cuộn trong lớp trên.
+   Để cả hai chung một khối thì nét viền bị cắt mất khi nội dung dài hơn
+   viewBox — cạnh trên và phải biến mất. */
+/* `width: fit-content` ở đây làm phép đo chiều cao lệch với lúc vẽ khung —
+   ResizeObserver đo được một kích thước, layout cuối lại khác, nên tiêu đề và
+   nút tràn ra ngoài viền. Giữ `width: 100%` và điều tiết bằng max-width. */
+.panel {
+  position: relative;
+  max-width: 620px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  animation: verdict-pop var(--dur-normal) var(--ease-bounce);
+}
+
+/* Panel nội dung ngắn (hộp xác nhận) thì hẹp hơn để không trông rỗng */
+.panel--compact { max-width: 440px; }
+
+.panel__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.panel__bg path {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* Lớp trong chia hai phần: nội dung cuộn được, và hàng nút cố định ở đáy. */
+.panel__inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: clamp(var(--space-md), 3.4vw, var(--space-lg));
+  gap: var(--space-sm);
+}
+
+.panel__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+/* Khi nội dung cuộn được, kẻ một nét mảnh tách phần cuộn với hàng nút */
+.panel__inner:has(.panel__scroll) .panel__actions {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+/* Amatic SC ở cỡ lớn có side-bearing âm — chữ đầu (nhất là C, G, O) tràn ra
+   ngoài hộp chữ và dính sát viền panel. Đệm trái bù lại. */
+.panel__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  font-size: clamp(2rem, 1.4rem + 3vw, 3.4rem);
+  letter-spacing: 0.05em;
+  margin: 0 0 var(--space-sm);
+  padding-left: 0.06em;
+  line-height: 1.12;
+}
+
+.panel__body { font-size: var(--text-body); line-height: 1.62; }
+.panel__body p { margin: 0 0 var(--space-sm); }
+
+.panel__body ul {
+  margin: 0 0 var(--space-md);
+  padding-left: 1.3em;
+}
+
+.panel__body li { margin-bottom: 0.45em; }
+
+.panel__actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding-top: var(--space-sm);
+}
+
+.stars {
+  font-size: clamp(1.3rem, 0.9rem + 1.8vw, 2rem);
+  letter-spacing: 0.1em;
+  line-height: 1;
+  margin-bottom: 0.15em;
+}
+
+.rank-label {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  font-size: var(--text-round);
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-sm);
+}
+
+.solution-row {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  align-items: center;
+  margin: var(--space-sm) 0 var(--space-md);
+}
+
+.solution-row .cup { width: clamp(40px, 8vw, 56px); }
+
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-display);
+  font-size: calc(var(--text-label) * 1.05);
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-md);
+}
+
+.score-table th,
+.score-table td {
+  text-align: left;
+  padding: 0.22em 0.4em;
+  border-bottom: 2px dashed var(--grey-light);
+}
+
+.score-table th { text-transform: uppercase; color: var(--grey-dark); }
+.score-table td:last-child, .score-table th:last-child { text-align: right; }
+
+/* Round bị bỏ qua bằng cheat — làm mờ để không lẫn với round chơi thật */
+.score-table tr[data-skipped='true'] {
+  opacity: 0.45;
+  font-style: italic;
+}
+
+/* ---------- Bảng cheat ---------- */
+
+/* Nút icon vuông trên thanh trạng thái */
+.btn--icon {
+  padding: 0.3em 0.55em;
+  min-width: 2.1em;
+  text-align: center;
+}
+
+.cheat__label {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: var(--text-label);
+  color: var(--grey-dark);
+  margin: var(--space-md) 0 var(--space-xs);
+}
+
+.cheat__rounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+/* Round đang chơi nổi lên bằng nền vàng (biến thể mặc định của .btn) */
+.cheat__rounds .btn { min-width: 3.1em; }
+
+/* Cột kịch bản nhỏ hơn — nó là chú thích, không phải số liệu chính */
+.score-table td:nth-child(2), .score-table th:nth-child(2) {
+  font-size: 0.85em;
+  color: var(--grey-dark);
+  white-space: nowrap;
+}
+
+.hint {
+  font-size: 0.92rem;
+  color: var(--grey-dark);
+  line-height: 1.55;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 767px) {
+  :root { --cup-w: clamp(52px, 13vw, 68px); }
+  .app { padding: var(--space-sm) var(--space-sm) var(--space-md); }
+  .table-wrap { min-height: 38vh; gap: var(--space-md); padding: var(--space-md) 0; }
+  .stats { gap: var(--space-md); width: 100%; justify-content: space-between; }
+  .table { justify-content: flex-start; }
+}
+
+@media (max-width: 479px) {
+  :root { --cup-w: 54px; }
+  .topbar { gap: var(--space-xs); }
+  .verdicts { min-height: 64px; }
+}
+
+/* Khi tắt animation, phản hồi vẫn phải đọc được bằng màu + chữ + nét gạch chéo */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
