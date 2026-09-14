@@ -297,7 +297,7 @@ Không dùng `border-radius` đều — mỗi nút có góc bo hơi khác nhau q
 
 **Biến thể `btn--small`** cho nút "Chơi lại ván" trên thanh trạng thái: cỡ chữ `0.82em`, màu `--grey-dark`, đậm lên `--ink` khi hover. Nút phụ trợ không được cạnh tranh thị giác với bàn chơi.
 
-### 5.9 Kịch bản hoán đổi (round 6–7)
+### 5.9 Kịch bản hoán đổi (round 5–7)
 
 **Ô đã có ly, chưa chốt** (`data-status="FILLED"`) — khung nét **liền mảnh** màu xám thay vì nét đứt, vì ô không bao giờ trống ở kịch bản này. Hover thì viền chuyển đen dày.
 
@@ -487,7 +487,7 @@ Trước khi coi phần art là xong:
 - [ ] Ô trống không lưu lại dấu vết ly đã trượt
 - [ ] Ly đang chờ ghép cặp hiện trên ô và kéo được sang ô khác
 - [ ] Ly đang giữ bị vô hiệu trong khay
-- [ ] Round 6–7: khay dự phòng ẩn hoàn toàn, bàn luôn đầy ly
+- [ ] Round 5–7: khay dự phòng ẩn hoàn toàn, bàn luôn đầy ly
 - [ ] Bảng "Đã thử" hiện đủ lịch sử và cuộn được khi nhiều lượt
 - [ ] Texture giấy (nếu dùng) opacity ≤ 0.04
 - [ ] Kiểm tra ở 320 / 375 / 768 / 1024 / 1440 px

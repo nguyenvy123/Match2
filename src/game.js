@@ -20,10 +20,16 @@ const FIRST_ROUND_SIZE = 3;
 const DOUBLE_UNLOCK_SIZE = 5;
 
 /** Hai kịch bản chơi. */
-export const MODE_PLACE = 'PLACE';   // round 1–5: lấy ly từ khay đặt vào ô
-export const MODE_SWAP = 'SWAP';     // round 6–7: hoán đổi các ly có sẵn
+export const MODE_PLACE = 'PLACE';   // round 1–4: lấy ly từ khay đặt vào ô
+export const MODE_SWAP = 'SWAP';     // round 5–7: hoán đổi các ly có sẵn
 
-const SWAP_ROUNDS = { 6: 5, 7: 6 };  // round → số ly
+// round → số ly. Round 5 chỉ 3 ly: đây là bàn tập để làm quen với luật hoán
+// đổi trước khi vào bàn thật, vì phản hồi ở kịch bản này chỉ là một con số —
+// khó hơn hẳn kịch bản đặt ly nếu ném thẳng người chơi vào bàn 5 ly.
+//
+// Bàn đặt ly dừng ở 6 ô, nên ly G (Xanh lá) hiện không round nào dùng tới.
+// Giữ lại trong CUPS để sẵn sàng nếu thêm bàn rộng hơn về sau.
+const SWAP_ROUNDS = { 5: 3, 6: 5, 7: 6 };
 
 export const SLOT_EMPTY = 'EMPTY';
 export const SLOT_LOCKED = 'LOCKED';
@@ -37,8 +43,8 @@ export function roundMode(round) {
 }
 
 /**
- * Số ô của một round. Round 1 → 3 ô, round 5 → 7 ô.
- * Round hoán đổi lùi lại còn 5–6 ly: kịch bản đó khó hơn hẳn ở cùng số ly,
+ * Số ô của một round. Round 1 → 3 ô, round 4 → 6 ô.
+ * Round hoán đổi lùi lại còn 3–6 ly: kịch bản đó khó hơn hẳn ở cùng số ly,
  * vì phản hồi chỉ là một con số chứ không chỉ ra ly nào đúng.
  */
 export function roundSize(round) {
@@ -58,8 +64,14 @@ export function canDouble(round) {
  *
  * Kịch bản hoán đổi: số đo từ mô phỏng 300 ván với người chơi lọc dần tập
  * hoán vị còn khả dĩ sau mỗi phản hồi (chiến thuật kiểu Knuth).
+ *
+ * Bàn tập 3 ly là ngoại lệ có chủ đích: mô phỏng cho 2.8, nhưng con số đó
+ * khiến ván hoàn hảo (2 lượt — ít nhất có thể, vì bàn đầu không bao giờ trùng
+ * sẵn lời giải) chỉ được 4 sao, và 4 lượt rơi thẳng từ 3 sao xuống 1 sao.
+ * Nới lên 2.9 để ván hoàn hảo được 5 sao và thang sao không có hố — đúng ý đồ
+ * một bàn tập dễ thở.
  */
-const SWAP_OPTIMAL = { 5: 4.7, 6: 5.7 };
+const SWAP_OPTIMAL = { 3: 2.9, 5: 4.7, 6: 5.7 };
 
 export function optimalAverage(round) {
   const n = roundSize(round);
@@ -237,7 +249,7 @@ export function judge(round, placements) {
   return { results, cleared: round.cleared };
 }
 
-// --- Kịch bản hoán đổi (round 6–7) ---
+// --- Kịch bản hoán đổi (round 5–7) ---
 
 /**
  * Đổi chỗ hai ly trên bàn. Không tính lượt và không gọi quản trò — người chơi

@@ -54,13 +54,13 @@ function roundWithSolution(solution) {
 
 console.log('\n--- Thiết lập round ---');
 
-test('round 1 có 3 ô, round 5 có 7 ô', () => {
+test('round 1 có 3 ô, round 4 có 6 ô — bàn đặt ly rộng nhất', () => {
   eq(roundSize(1), 3);
-  eq(roundSize(5), 7);
+  eq(roundSize(4), 6);
 });
 
 test('Đặt đôi khóa ở round 1-2, mở từ round 3', () => {
-  eq([1, 2, 3, 4, 5].map(canDouble), [false, false, true, true, true]);
+  eq([1, 2, 3, 4].map(canDouble), [false, false, true, true]);
 });
 
 test('số loại ly luôn bằng số ô', () => {
@@ -246,22 +246,22 @@ test('chơi hết 7 round thì game kết thúc', () => {
   }
   ok(g.finished, 'game chưa kết thúc sau round 7');
   eq(g.roundResults.length, 7);
-  // Round 1–5 đặt ly: mỗi ô 1 lần đặt. Round 6–7 hoán đổi: mỗi round 1 lượt kiểm tra.
-  eq(g.totalAttempts, 3 + 4 + 5 + 6 + 7 + 1 + 1);
+  // Round 1–4 đặt ly: mỗi ô 1 lần đặt. Round 5–7 hoán đổi: mỗi round 1 lượt kiểm tra.
+  eq(g.totalAttempts, 3 + 4 + 5 + 6 + 1 + 1 + 1);
 });
 
 console.log('\n--- Xếp hạng ---');
 
 test('trung bình tối ưu khớp mô phỏng trong tài liệu', () => {
-  const expected = [4.5, 7, 10, 13.5, 17.5];
-  [1, 2, 3, 4, 5].forEach((r, i) => {
+  const expected = [4.5, 7, 10, 13.5];
+  [1, 2, 3, 4].forEach((r, i) => {
     eq(Math.round(optimalAverage(r) * 10) / 10, expected[i], `round ${r}`);
   });
 });
 
 test('giải hoàn hảo được 5 sao', () => {
   eq(rankFor(1, 3).stars, 5);
-  eq(rankFor(5, 7).stars, 5);
+  eq(rankFor(4, 6).stars, 5);
 });
 
 test('giải đúng mức tối ưu được 3 sao', () => {
@@ -340,7 +340,7 @@ test('1000 ván ngẫu nhiên: luôn giải được, attempts nằm trong biên
 });
 
 test('trung bình mô phỏng khớp lý thuyết cho kịch bản đặt ly (sai số < 3%)', () => {
-  const PLACE_ROUNDS = [1, 2, 3, 4, 5];
+  const PLACE_ROUNDS = [1, 2, 3, 4];
   const totals = PLACE_ROUNDS.map(() => 0);
   const TRIALS = 2000;
   for (let seed = 1; seed <= TRIALS; seed++) {
@@ -364,18 +364,20 @@ test('trung bình mô phỏng khớp lý thuyết cho kịch bản đặt ly (sa
 
 console.log('\n--- Kịch bản hoán đổi ---');
 
-test('round 1-5 là đặt ly, round 6-7 là hoán đổi', () => {
-  eq([1, 2, 3, 4, 5].map(roundMode), Array(5).fill(MODE_PLACE));
-  eq([6, 7].map(roundMode), [MODE_SWAP, MODE_SWAP]);
+test('round 1-4 là đặt ly, round 5-7 là hoán đổi', () => {
+  eq([1, 2, 3, 4].map(roundMode), Array(4).fill(MODE_PLACE));
+  eq([5, 6, 7].map(roundMode), [MODE_SWAP, MODE_SWAP, MODE_SWAP]);
 });
 
-test('round hoán đổi lùi về 5 rồi 6 ly', () => {
+/** Round 5 là bàn tập 3 ly — cửa vào kịch bản hoán đổi, xem game-design.md mục 6b. */
+test('round hoán đổi mở bằng bàn tập 3 ly rồi lên 5 và 6 ly', () => {
+  eq(roundSize(5), 3);
   eq(roundSize(6), 5);
   eq(roundSize(7), 6);
 });
 
 test('round hoán đổi không có Đặt đôi', () => {
-  eq([6, 7].map(canDouble), [false, false]);
+  eq([5, 6, 7].map(canDouble), [false, false, false]);
 });
 
 test('bàn đầy ly ngay từ đầu, khay rỗng', () => {
@@ -385,18 +387,24 @@ test('bàn đầy ly ngay từ đầu, khay rỗng', () => {
 });
 
 test('xếp ban đầu là hoán vị đủ của bộ ly', () => {
-  for (let seed = 1; seed <= 200; seed++) {
-    const r = createRound(6, seededRng(seed));
-    eq([...currentArrangement(r)].sort(), [...r.palette].sort(), `seed ${seed}`);
+  for (const round of [5, 6, 7]) {
+    for (let seed = 1; seed <= 200; seed++) {
+      const r = createRound(round, seededRng(seed));
+      eq([...currentArrangement(r)].sort(), [...r.palette].sort(), `round ${round} seed ${seed}`);
+    }
   }
 });
 
+// Bàn tập 3 ly là chỗ dễ vỡ nhất của startingArrangement: vùng chấp nhận chỉ
+// còn hits ≤ 1, nên phải soi cả nó chứ không chỉ các bàn lớn.
 test('xếp ban đầu không trùng lời giải và không quá nửa số ly đúng', () => {
-  for (let seed = 1; seed <= 300; seed++) {
-    const r = createRound(6, seededRng(seed));
-    const hits = countHits(currentArrangement(r), r.solution);
-    ok(hits < r.size, `seed ${seed}: trùng luôn lời giải`);
-    ok(hits <= Math.floor(r.size / 2), `seed ${seed}: ${hits}/${r.size} đúng sẵn, quá dễ`);
+  for (const round of [5, 6, 7]) {
+    for (let seed = 1; seed <= 300; seed++) {
+      const r = createRound(round, seededRng(seed));
+      const hits = countHits(currentArrangement(r), r.solution);
+      ok(hits < r.size, `round ${round} seed ${seed}: trùng luôn lời giải`);
+      ok(hits <= Math.floor(r.size / 2), `round ${round} seed ${seed}: ${hits}/${r.size} đúng sẵn, quá dễ`);
+    }
   }
 });
 
@@ -532,7 +540,7 @@ test('chơi được xuyên suốt 7 round, hai kịch bản nối nhau', () => 
 
 test('500 ván hoán đổi ngẫu nhiên: luôn giải được', () => {
   for (let seed = 1; seed <= 500; seed++) {
-    for (const round of [6, 7]) {
+    for (const round of [5, 6, 7]) {
       const r = createRound(round, seededRng(seed * 13 + round));
       solveBySwaps(r);
       checkArrangement(r);
@@ -544,6 +552,7 @@ test('500 ván hoán đổi ngẫu nhiên: luôn giải được', () => {
 console.log('\n--- Xếp hạng kịch bản hoán đổi ---');
 
 test('trung bình tối ưu của round hoán đổi khớp mô phỏng', () => {
+  eq(optimalAverage(5), 2.9);
   eq(optimalAverage(6), 4.7);
   eq(optimalAverage(7), 5.7);
 });
@@ -554,6 +563,17 @@ test('giải nhanh hơn tối ưu được sao cao', () => {
 
 test('giải chậm bị hạ sao', () => {
   ok(rankFor(6, 12).stars <= 2);
+});
+
+/**
+ * Bàn tập 3 ly không bao giờ trùng sẵn lời giải, nên 2 lượt là ván hoàn hảo —
+ * phải được 5 sao. Đây là lý do trung bình tối ưu đặt 2.9 chứ không phải 2.8
+ * như mô phỏng thuần: ở 2.8 thì ván hoàn hảo chỉ được 4 sao.
+ */
+test('ván hoàn hảo ở bàn tập được 5 sao, và thang sao không có hố', () => {
+  eq(rankFor(5, 2).stars, 5);
+  eq(rankFor(5, 3).stars, 3);
+  eq(rankFor(5, 4).stars, 2);
 });
 
 

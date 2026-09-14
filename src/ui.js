@@ -84,6 +84,25 @@ function renderCup(cupId, seed, { width = 88, height = 110 } = {}) {
   ]);
 }
 
+/**
+ * Vẽ một chiếc ly ÚP NGƯỢC — dùng cho ô còn trống, để người chơi hình dung
+ * ra là quản trò đã đặt sẵn một chiếc ly úp kín ở đó, chỉ là chưa biết màu.
+ * Chỉ vẽ viền (không tô màu, không chữ cái) — đúng nghĩa "chưa lật lên".
+ */
+function renderHiddenCup(seed, { width = 88, height = 110 } = {}) {
+  const { body, waist } = handCup(width, height, seed);
+  return svg('svg', {
+    class: 'cup cup--hidden',
+    viewBox: `0 0 ${width} ${height}`,
+    'aria-hidden': 'true',
+  }, [
+    svg('g', { transform: `rotate(180 ${width / 2} ${height / 2})` }, [
+      svg('path', { class: 'cup__outline', d: body }),
+      svg('path', { class: 'cup__waist', d: waist }),
+    ]),
+  ]);
+}
+
 function renderFrame(className, w, h, seed, opts) {
   return svg('svg', {
     class: className,
@@ -118,7 +137,7 @@ export function mountGame(root) {
   let busy = false;           // khoá tương tác trong lúc animation chạy
   let seedCounter = 0;        // đổi seed để hình ly vẽ lại khác nhau mỗi round
   let panelObserver = null;   // theo dõi kích thước panel để vẽ lại khung
-  let swapPick = null;        // ô đầu đã chọn để hoán đổi (kịch bản round 6–7)
+  let swapPick = null;        // ô đầu đã chọn để hoán đổi (kịch bản round 5–7)
 
   const dom = buildShell();
   root.append(dom.app, dom.overlay);
@@ -263,7 +282,7 @@ export function mountGame(root) {
         renderFrame('slot__outline', 100, 132, seed, { wobble: 2.4, inset: 4 }),
         shownCup
           ? renderCup(shownCup, seed + 500)
-          : el('span', { class: 'slot__ghost', text: '?', 'aria-hidden': 'true' }),
+          : renderHiddenCup(seed + 500),
         locked
           ? svg('svg', { class: 'slot__ticks', viewBox: '0 0 30 22', 'aria-hidden': 'true' },
               handStrikes(30, 22, seed + 77, 2).map((d) => svg('path', { d })))
@@ -299,7 +318,7 @@ export function mountGame(root) {
   }
 
   /**
-   * Bàn của kịch bản hoán đổi (round 6–7). Bàn đã đầy ly ngay từ đầu, người
+   * Bàn của kịch bản hoán đổi (round 5–7). Bàn đã đầy ly ngay từ đầu, người
    * chơi đổi chỗ chúng rồi bấm kiểm tra. Không có khay dự phòng.
    */
   function renderSwapTable() {
@@ -837,7 +856,7 @@ export function mountGame(root) {
         return;
       }
 
-      const ghost = frame.querySelector('.slot__ghost');
+      const ghost = frame.querySelector('.cup--hidden');
       const cupNode = renderCup(cup, seedCounter * 100 + slot * 7 + 13 + 500);
       cupNode.classList.add('slot__cup', 'is-shaking');
       ghost?.replaceWith(cupNode);
@@ -960,9 +979,9 @@ export function mountGame(root) {
         el('li', { html: 'Ly đã khóa sẽ bị gạch khỏi khay.' }),
       ]),
       el('p', { html: '<strong>Game không ghi lại những lần đoán sai.</strong> Bạn đã thử ly nào ở ô nào — phải tự nhớ lấy.' }),
-      el('p', { html: '<strong>Round 1–5:</strong> bàn rộng dần từ 3 lên 7 ô. Từ round 3 chuyển sang <strong>⚡ Đặt đôi</strong> — mỗi lượt <em>bắt buộc</em> đặt 2 ly vào 2 ô, chọn cả hai trước khi biết kết quả nào.' }),
-      el('p', { html: '<strong>Round 6–7:</strong> đổi kịch bản. Bàn có sẵn ly bị xáo trộn, bạn <strong>đổi chỗ</strong> chúng rồi bấm Kiểm tra. Quản trò chỉ nói <strong>số ly đúng vị trí</strong>, không nói ly nào.' }),
-      el('p', { class: 'hint', text: 'Bàn phím: A–G chọn ly · 1–7 chọn ô · Esc huỷ · R chơi lại ván' }),
+      el('p', { html: '<strong>Round 1–4:</strong> bàn rộng dần từ 3 lên 6 ô. Từ round 3 chuyển sang <strong>⚡ Đặt đôi</strong> — mỗi lượt <em>bắt buộc</em> đặt 2 ly vào 2 ô, chọn cả hai trước khi biết kết quả nào.' }),
+      el('p', { html: '<strong>Round 5–7:</strong> đổi kịch bản. Bàn có sẵn ly bị xáo trộn, bạn <strong>đổi chỗ</strong> chúng rồi bấm Kiểm tra. Quản trò chỉ nói <strong>số ly đúng vị trí</strong>, không nói ly nào. Round 5 chỉ 3 ly — bàn tập để làm quen luật mới.' }),
+      el('p', { class: 'hint', text: 'Bàn phím: A–F chọn ly · 1–6 chọn ô · Esc huỷ · R chơi lại ván' }),
     ], [
       handButton('Bắt đầu', () => closePanel(), { seed: 12 }),
     ]);
@@ -986,6 +1005,7 @@ export function mountGame(root) {
     const nextMode = game.active.mode;
     const unlocksDouble = game.active.canDouble && !canDoubleAt(nextRound - 1);
     // Round 6 đổi hẳn kịch bản — phải giải thích luật mới, không chỉ báo số ô.
+    // Đây cũng là bàn tập 3 ly, nên màn này đóng luôn vai hướng dẫn.
     const entersSwap = nextMode === MODE_SWAP && roundMode(nextRound - 1) !== MODE_SWAP;
 
     const spent = record.mode === MODE_SWAP
@@ -1000,6 +1020,7 @@ export function mountGame(root) {
             el('li', { html: 'Bạn <strong>đổi chỗ</strong> các ly cho nhau — đổi bao nhiêu lần cũng được, không tốn lượt.' }),
             el('li', { html: 'Xong thì bấm <strong>Kiểm tra</strong>. Quản trò chỉ nói <strong>số ly đúng vị trí</strong>, KHÔNG nói ly nào.' }),
           ]),
+          el('p', { html: `👉 Round này chỉ <strong>${nextSize} ly</strong> — bàn tập để bạn quen tay. Hai round sau mới là bàn thật (5 rồi 6 ly).` }),
           el('p', { class: 'hint', text: 'Mỗi lần Kiểm tra tính 1 lượt. Bảng "Đã thử" bên dưới ghi lại các lượt trước để bạn suy luận.' }),
         ]
       : [
@@ -1030,7 +1051,7 @@ export function mountGame(root) {
 
   function showGameOver() {
     const final = finalRank(game);
-    // Round 1–5 đo bằng số lần đặt ly, round 6–7 bằng số lượt kiểm tra. Hai
+    // Round 1–4 đo bằng số lần đặt ly, round 5–7 bằng số lượt kiểm tra. Hai
     // đơn vị khác nhau nên cột phải ghi trung tính và có chú thích riêng.
     const rows = game.roundResults.map((r) => el('tr', {
       'data-skipped': String(Boolean(r.skipped)),
@@ -1055,7 +1076,7 @@ export function mountGame(root) {
           el('td', { text: String(final.totalAttempts) }),
         ])]),
       ]),
-      el('p', { class: 'hint', html: `Điểm là số lần đặt ly (round 1–5) và số lượt kiểm tra (round 6–7). Người chơi tối ưu cần khoảng <strong>${final.optimal}</strong> điểm cho cả 7 round.` }),
+      el('p', { class: 'hint', html: `Điểm là số lần đặt ly (round 1–4) và số lượt kiểm tra (round 5–7). Người chơi tối ưu cần khoảng <strong>${final.optimal}</strong> điểm cho cả ${TOTAL_ROUNDS} round.` }),
     ], [
       handButton('Chơi lại', restart, { seed: 33 }),
     ]);
@@ -1248,20 +1269,20 @@ export function mountGame(root) {
 
     if (game.active.mode === MODE_SWAP) {
       if (e.key === 'Enter') { onCheck(); return; }
-      if (/^[1-7]$/.test(key)) {
+      if (/^[1-6]$/.test(key)) {
         const idx = Number(key) - 1;
         if (idx < game.active.size) onSwapSlotClick(idx);
       }
       return;
     }
 
-    if (/^[A-G]$/.test(key)) {
+    if (/^[A-F]$/.test(key)) {
       if (game.active.available.has(key)) onCupClick(key);
       else flashHint(`Ly ${key} đã khóa trên bàn`);
       return;
     }
 
-    if (/^[1-7]$/.test(key)) {
+    if (/^[1-6]$/.test(key)) {
       const idx = Number(key) - 1;
       if (idx < game.active.size) onSlotClick(idx);
     }

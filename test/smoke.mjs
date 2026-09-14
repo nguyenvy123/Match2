@@ -334,51 +334,49 @@ for (const [w, h, name] of [[375, 780, 'mobile'], [768, 900, 'tablet'], [1440, 9
   await page.screenshot({ path: `${SHOTS}/08-${name}.png`, fullPage: true });
 }
 
-console.log('\n--- Round 5, bàn rộng nhất ---');
+console.log('\n--- Round 4, bàn đặt ly rộng nhất ---');
 await page.setViewportSize({ width: 1280, height: 860 });
-for (let r = 3; r <= 4; r++) {
-  await solveRound();
-  await page.waitForSelector('.overlay:not([hidden])', { timeout: 10000 });
-  await page.click('.panel .btn');
-  await page.waitForSelector('.overlay', { state: 'hidden' });
-}
-check(await page.locator('.slot').count() === 7, 'round 5 có 7 ô');
-await page.screenshot({ path: `${SHOTS}/09-round5.png` });
+await solveRound();
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 10000 });
+await page.click('.panel .btn');
+await page.waitForSelector('.overlay', { state: 'hidden' });
+check(await page.locator('.slot').count() === 6, 'round 4 có 6 ô');
+await page.screenshot({ path: `${SHOTS}/09-round4.png` });
 
 await page.setViewportSize({ width: 375, height: 780 });
 await page.waitForTimeout(240);
 const bodyScrollsAt375 = await page.evaluate(() =>
   document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-check(!bodyScrollsAt375, 'round 5 trên mobile: body vẫn không cuộn ngang');
+check(!bodyScrollsAt375, 'round 4 trên mobile: body vẫn không cuộn ngang');
 const tableScrolls = await page.evaluate(() => {
   const t = document.querySelector('.table-scroll');
   return t.scrollWidth > t.clientWidth;
 });
-check(tableScrolls, 'round 5 trên mobile: bàn cuộn ngang trong container riêng');
-await page.screenshot({ path: `${SHOTS}/10-round5-mobile.png`, fullPage: true });
+check(tableScrolls, 'round 4 trên mobile: bàn cuộn ngang trong container riêng');
+await page.screenshot({ path: `${SHOTS}/10-round4-mobile.png`, fullPage: true });
 
-console.log('\n--- Kịch bản hoán đổi (round 6-7) ---');
+console.log('\n--- Kịch bản hoán đổi (round 5-7) ---');
 
 // Phần trước đổi viewport sang mobile — trả về desktop trước khi tiếp tục,
 // nếu không các ô nằm ngoài viewport và không click được.
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.waitForTimeout(260);
 
-// Chơi hết các round đặt ly còn lại để tới round 6.
-while (Number((await page.locator('.stat__value').first().textContent()).split('/')[0]) < 6) {
+// Chơi hết các round đặt ly còn lại để tới round 5.
+while (Number((await page.locator('.stat__value').first().textContent()).split('/')[0]) < 5) {
   await solveRound();
   await page.waitForSelector('.overlay:not([hidden])', { timeout: 16000 });
   const body = await page.locator('.panel__body').textContent();
   if (body.includes('Kịch bản mới')) {
-    check(true, 'màn chuyển round 6 giới thiệu kịch bản mới');
+    check(true, 'màn chuyển round 5 giới thiệu kịch bản mới');
     check(body.includes('số ly đúng vị trí'), 'giải thích rõ chỉ báo số lượng');
   }
   await page.click('.panel .btn');
   await page.waitForSelector('.overlay', { state: 'hidden' });
 }
 
-check(await page.locator('.slot').count() === 5, 'round 6 có 5 ô');
-check(await page.locator('.slot .slot__cup').count() === 5, 'bàn đã đầy ly ngay từ đầu');
+check(await page.locator('.slot').count() === 3, 'round 5 là bàn tập 3 ô');
+check(await page.locator('.slot .slot__cup').count() === 3, 'bàn đã đầy ly ngay từ đầu');
 check(await page.locator('.tray').isHidden(), 'khay dự phòng bị ẩn ở kịch bản hoán đổi');
 check(await page.locator('.swap-bar').isVisible(), 'hiện thanh điều khiển hoán đổi');
 check((await page.locator('.stat__label').textContent()).trim() === 'Lượt', 'bộ đếm đổi sang đơn vị Lượt');
@@ -407,7 +405,7 @@ await page.click('.swap-bar .btn');
 await page.waitForTimeout(620);
 check(await page.locator('.stat__value').nth(1).textContent() === '1', 'Kiểm tra tính 1 lượt');
 const countText = (await page.locator('.verdict__text').textContent()).trim();
-check(/^\d+\/5$/.test(countText), `bảng phán xử ở dạng số (${countText})`);
+check(/^\d+\/3$/.test(countText), `bảng phán xử ở dạng số (${countText})`);
 check(await page.locator('.verdict').count() === 1, 'chỉ một bảng phán xử, không chỉ ra từng ô');
 check(await page.locator('.swap-log__row').count() === 1, 'lịch sử ghi lại lượt vừa thử');
 await page.screenshot({ path: `${SHOTS}/15-swap-check.png` });
@@ -423,7 +421,7 @@ check(await page.locator('.stat__value').nth(1).textContent() === turnsBeforeRep
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
 const boxA = await page.locator('.slot[data-slot="0"]').boundingBox();
-const boxB = await page.locator('.slot[data-slot="3"]').boundingBox();
+const boxB = await page.locator('.slot[data-slot="2"]').boundingBox();
 const dragBefore = await page.evaluate(() =>
   [...document.querySelectorAll('.slot')].map((s) => s.querySelector('.cup')?.getAttribute('aria-label')));
 await page.mouse.move(boxA.x + boxA.width / 2, boxA.y + boxA.height * 0.35);
@@ -433,9 +431,9 @@ await page.mouse.up();
 await page.waitForTimeout(320);
 const dragAfter = await page.evaluate(() =>
   [...document.querySelectorAll('.slot')].map((s) => s.querySelector('.cup')?.getAttribute('aria-label')));
-check(dragBefore[0] === dragAfter[3] && dragBefore[3] === dragAfter[0], 'kéo ly giữa hai ô đổi chỗ được');
+check(dragBefore[0] === dragAfter[2] && dragBefore[2] === dragAfter[0], 'kéo ly giữa hai ô đổi chỗ được');
 
-// Giải nốt round 6 và 7 để chắc chuỗi round chạy hết.
+// Giải nốt round 5, 6, 7 để chắc chuỗi round chạy hết.
 /** Giải round hoán đổi: đưa từng ly về đúng chỗ rồi kiểm tra một lần. */
 async function solveSwapRound() {
   for (let guard = 0; guard < 30; guard++) {
@@ -474,18 +472,26 @@ async function readHits() {
   return m ? Number(m[1]) : -1;
 }
 
+const solved5 = await solveSwapRound();
+check(solved5, 'giải được round 5 bằng hoán đổi');
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 20000 });
+check((await page.locator('.panel__title').textContent()).includes('Round 5'), 'hiện màn kết thúc round 5');
+await page.screenshot({ path: `${SHOTS}/16-swap-cleared.png` });
+await page.click('.panel .btn');
+await page.waitForSelector('.overlay', { state: 'hidden' });
+check(await page.locator('.slot').count() === 5, 'round 6 có 5 ô');
+
+await page.setViewportSize({ width: 1280, height: 860 });
 const solved6 = await solveSwapRound();
 check(solved6, 'giải được round 6 bằng hoán đổi');
-await page.waitForSelector('.overlay:not([hidden])', { timeout: 20000 });
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 24000 });
 check((await page.locator('.panel__title').textContent()).includes('Round 6'), 'hiện màn kết thúc round 6');
-await page.screenshot({ path: `${SHOTS}/16-swap-cleared.png` });
 await page.click('.panel .btn');
 await page.waitForSelector('.overlay', { state: 'hidden' });
 check(await page.locator('.slot').count() === 6, 'round 7 có 6 ô');
 
 
 console.log('\n--- Kết thúc game ---');
-await page.setViewportSize({ width: 1280, height: 860 });
 const solved7 = await solveSwapRound();
 check(solved7, 'giải được round 7 bằng hoán đổi');
 await page.waitForSelector('.overlay:not([hidden])', { timeout: 24000 });
@@ -512,11 +518,11 @@ check(await page.evaluate(() => document.activeElement?.closest('.panel__actions
   'focus vào nút hành động, không phải nút round');
 await page.screenshot({ path: `${SHOTS}/17-cheat.png` });
 
-// Nhảy tới round 6 (kịch bản hoán đổi) để kiểm tra cheat đổi cả kịch bản.
-await page.locator('.cheat__rounds .btn').nth(5).click();
+// Nhảy tới round 5 (kịch bản hoán đổi) để kiểm tra cheat đổi cả kịch bản.
+await page.locator('.cheat__rounds .btn').nth(4).click();
 await page.waitForSelector('.overlay', { state: 'hidden' });
-check(await page.locator('.stat__value').first().textContent() === '6/7', 'nhảy được tới round 6');
-check(await page.locator('.slot').count() === 5, 'round 6 có 5 ô');
+check(await page.locator('.stat__value').first().textContent() === '5/7', 'nhảy được tới round 5');
+check(await page.locator('.slot').count() === 3, 'round 5 là bàn tập 3 ô');
 check(await page.locator('.swap-bar').isVisible(), 'cheat đổi đúng sang kịch bản hoán đổi');
 
 // Giải luôn round hiện tại.
@@ -525,7 +531,17 @@ await page.waitForTimeout(260);
 await page.locator('.panel__actions .btn').first().click();
 await page.waitForTimeout(820);
 check(await page.locator('.overlay').isVisible(), 'giải luôn thì hiện màn kết thúc round');
-check((await page.locator('.panel__title').textContent()).includes('Round 6'), 'đúng round vừa giải');
+check((await page.locator('.panel__title').textContent()).includes('Round 5'), 'đúng round vừa giải');
+await page.click('.panel .btn');
+await page.waitForSelector('.overlay', { state: 'hidden' });
+check(await page.locator('.stat__value').first().textContent() === '6/7', 'sang round 6');
+
+// Giải nốt round 6 để tới round cuối.
+await page.click('.btn--icon');
+await page.waitForTimeout(260);
+await page.locator('.panel__actions .btn').first().click();
+await page.waitForTimeout(900);
+check((await page.locator('.panel__title').textContent()).includes('Round 6'), 'giải luôn được round 6');
 await page.click('.panel .btn');
 await page.waitForSelector('.overlay', { state: 'hidden' });
 check(await page.locator('.stat__value').first().textContent() === '7/7', 'sang round 7');
@@ -537,7 +553,7 @@ await page.locator('.panel__actions .btn').first().click();
 await page.waitForTimeout(900);
 check((await page.locator('.panel__title').textContent()).includes('Hoàn thành'), 'hiện màn tổng kết');
 check(await page.locator('.score-table tbody tr').count() === 7, 'bảng điểm vẫn đủ 7 dòng');
-check(await page.locator('.score-table tr[data-skipped="true"]').count() === 5,
+check(await page.locator('.score-table tr[data-skipped="true"]').count() === 4,
   'các round bị cheat bỏ qua được đánh dấu riêng');
 await page.screenshot({ path: `${SHOTS}/18-cheat-score.png` });
 

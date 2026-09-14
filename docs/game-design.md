@@ -14,7 +14,7 @@
 | Số người chơi | 1 (máy làm Quản trò) |
 | Cấu trúc | 7 round, hai kịch bản nối tiếp |
 | Thời lượng trọn game | 12–25 phút |
-| Chỉ số đo | Số lần đặt ly (round 1–5) / số lượt kiểm tra (round 6–7) |
+| Chỉ số đo | Số lần đặt ly (round 1–4) / số lượt kiểm tra (round 5–7) |
 
 **Mục tiêu:** Người chơi phải tìm ra chính xác **loại ly** và **vị trí** của các chiếc ly bí mật mà Quản trò đã giấu úp kín trên bàn. Hoàn thành cả 7 round là thắng game.
 
@@ -43,7 +43,7 @@ Ví dụ round 1 có 3 ô, thì bộ dự phòng có đúng 3 loại: **A Đỏ*
 
 Game có **hai kịch bản** nối tiếp nhau.
 
-| | Round 1–5 · Đặt ly | Round 6–7 · Hoán đổi |
+| | Round 1–4 · Đặt ly | Round 5–7 · Hoán đổi |
 |---|---|---|
 | Bàn khởi đầu | Trống | Đã đầy ly, thứ tự bị xáo |
 | Thao tác | Lấy ly từ khay đặt vào ô | Đổi chỗ hai ly trên bàn |
@@ -51,7 +51,7 @@ Game có **hai kịch bản** nối tiếp nhau.
 | Nội dung phản hồi | "ĐÚNG" / "SAI" cho **từng ô** | **Số ly** đúng vị trí, không nói ly nào |
 | Đơn vị đo | Số lần đặt ly | Số lượt kiểm tra |
 
-Kịch bản hoán đổi **khó hơn hẳn** ở cùng số ly, vì mỗi lượt chỉ thu được một con số thay vì biết chính xác ô nào đúng. Đó là lý do số ly lùi lại còn 5–6 ở round 6–7.
+Kịch bản hoán đổi **khó hơn hẳn** ở cùng số ly, vì mỗi lượt chỉ thu được một con số thay vì biết chính xác ô nào đúng. Đó là lý do số ly lùi lại ở round 5–7, và round 5 chỉ 3 ly — bàn tập để làm quen luật mới trước khi vào bàn thật.
 
 ### 3.1 Bảng round
 
@@ -60,9 +60,9 @@ Kịch bản hoán đổi **khó hơn hẳn** ở cùng số ly, vì mỗi lư�
 | 1 | Đặt ly | 3 | A B C | 6 | Làm quen |
 | 2 | Đặt ly | 4 | A B C D | 24 | |
 | 3 | Đặt ly | 5 | A B C D E | 120 | Đặt đôi bắt buộc |
-| 4 | Đặt ly | 6 | A B C D E F | 720 | |
-| 5 | Đặt ly | 7 | A B C D E F G | 5 040 | Bàn rộng nhất |
-| 6 | 🔄 Hoán đổi | 5 | A B C D E | 120 | **Đổi kịch bản** |
+| 4 | Đặt ly | 6 | A B C D E F | 720 | Bàn đặt ly rộng nhất |
+| 5 | 🔄 Hoán đổi | 3 | A B C | 6 | **Đổi kịch bản** — bàn tập |
+| 6 | 🔄 Hoán đổi | 5 | A B C D E | 120 | Bàn thật |
 | 7 | 🔄 Hoán đổi | 6 | A B C D E F | 720 | Thử thách cuối |
 
 Bộ ly **cộng dồn**: round sau giữ nguyên các màu cũ và thêm 1 màu mới. Người chơi quen mặt dần, không phải học lại bảng màu mỗi round.
@@ -75,7 +75,7 @@ Bộ ly **cộng dồn**: round sau giữ nguyên các màu cũ và thêm 1 màu
 | D | Xanh ngọc | `#6ACADA` | Round 2 |
 | E | Hồng | `#DB5CA1` | Round 3 |
 | F | Cam | `#F2934A` | Round 4 |
-| G | Xanh lá | `#7FBF6A` | Round 5 |
+| G | Xanh lá | `#7FBF6A` | *(chưa round nào dùng)* |
 
 Bảng màu trích trực tiếp từ ảnh tham chiếu art style — xem [art-style.md](art-style.md) mục 2.2.
 
@@ -180,7 +180,7 @@ Khi bắt buộc, nó trở thành **ràng buộc định hình lối chơi**: n
 
 ---
 
-## 6b. Kịch bản hoán đổi (round 6–7)
+## 6b. Kịch bản hoán đổi (round 5–7)
 
 ### 6b.1 Luật
 
@@ -217,7 +217,7 @@ Thông tin thu được mỗi lượt là **mức thay đổi của con số**, 
 
 ### 6b.4 Bảng "Đã thử" là bắt buộc
 
-Khác với round 1–5 (cố ý không ghi lại lịch sử để buộc người chơi nhớ), kịch bản này **phải hiển thị lại các lượt đã thử** kèm kết quả.
+Khác với round 1–4 (cố ý không ghi lại lịch sử để buộc người chơi nhớ), kịch bản này **phải hiển thị lại các lượt đã thử** kèm kết quả.
 
 Lý do: phản hồi chỉ là một con số, và thông tin nằm ở **so sánh giữa các lượt**. Không thấy lại lượt trước thì không có gì để so, và lối chơi tụt xuống dò mò thuần túy — mất hẳn phần suy luận.
 
@@ -498,7 +498,7 @@ Màn chuyển hiển thị: lời giải vừa giải, số lần đặt, xếp 
 
 ### Có
 
-- 7 round, hai kịch bản: đặt ly (1–5) và hoán đổi (6–7)
+- 7 round, hai kịch bản: đặt ly (1–4) và hoán đổi (5–7)
 - Bộ ly cộng dồn qua các round
 - Phản hồi ĐÚNG / SAI tức thì
 - Sửa sai lập tức (đổi ly hoặc đổi ô)

@@ -304,13 +304,25 @@ body::before {
   letter-spacing: 0.08em;
 }
 
-.slot__ghost {
-  font-family: var(--font-display);
-  font-size: calc(var(--cup-w) * 0.5);
-  color: var(--grey-light);
-  user-select: none;
-  transition: color var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-bounce);
+/* Ly úp ngược đặt ở ô trống — viền nét đứt xám nhạt, không tô màu, không chữ
+   cái, vì đây là ly "chưa lật lên", danh tính còn chưa biết. */
+.cup--hidden .cup__outline {
+  stroke: var(--grey-light);
+  stroke-width: var(--stroke-normal);
+  stroke-dasharray: 6 5;
+  transition: stroke var(--dur-fast) var(--ease-out);
+}
+
+.cup--hidden .cup__waist {
+  stroke: var(--grey-light);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+  transition: stroke var(--dur-fast) var(--ease-out);
+}
+
+.slot:not(:disabled):hover .cup--hidden .cup__outline,
+.slot:not(:disabled):hover .cup--hidden .cup__waist {
+  stroke: var(--grey-dark);
 }
 
 .slot__cup {
@@ -873,9 +885,13 @@ body.is-dragging {
 
 .slot[data-hover='true'] { transform: translateY(-5px) scale(1.04); }
 
-.slot[data-hover='true'] .slot__ghost {
-  color: var(--grey-dark);
+.slot[data-hover='true'] .cup--hidden {
   transform: scale(1.15);
+}
+
+.slot[data-hover='true'] .cup--hidden .cup__outline,
+.slot[data-hover='true'] .cup--hidden .cup__waist {
+  stroke: var(--grey-dark);
 }
 
 /* ---------- Lớp phủ (hướng dẫn, kết quả) ---------- */
