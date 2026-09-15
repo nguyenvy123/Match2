@@ -1,6 +1,6 @@
 # Match 2
 
-Trò chơi suy luận và trí nhớ. Bảy round, hai kịch bản: **đặt ly** rồi **hoán đổi**.
+Trò chơi suy luận và trí nhớ. Tám round, ba kịch bản: **đặt ly**, **hoán đổi**, rồi **lật ly**.
 
 ---
 
@@ -38,7 +38,7 @@ npm run test:ui # test giao diện bằng Chrome thật (cần server đang ch�
 
 Phản hồi chỉ áp dụng cho đúng ô vừa đặt, không tiết lộ gì về các ô còn lại.
 
-### Bảy round, hai kịch bản
+### Tám round, ba kịch bản
 
 | Round | Kịch bản | Số ô | Hoán vị |
 |---|---|---|---|
@@ -46,6 +46,7 @@ Phản hồi chỉ áp dụng cho đúng ô vừa đặt, không tiết lộ gì
 | 3–4 | Đặt ly + ⚡ Đặt đôi | 5–6 | 120 · 720 |
 | 5 | 🔄 Hoán đổi — bàn tập | 3 | 6 |
 | 6–7 | 🔄 Hoán đổi | 5–6 | 120 · 720 |
+| 8 | 🙃 Lật ly | 3 | 18 |
 
 Không có thua. Thử thách là **giải với ít lượt nhất**.
 
@@ -85,7 +86,7 @@ Ly đầu của cặp **hiện ngay trên ô** (mờ, nghiêng nhẹ = chưa ch�
 
 - **Kéo thả:** kéo ly từ khay lên ô. Chạy được cả chuột lẫn cảm ứng.
 - **Bấm chọn:** bấm ly → bấm ô. Vẫn dùng được song song.
-- **Bàn phím:** `A`–`F` chọn ly · `1`–`6` chọn ô · `Esc` huỷ · `R` chơi lại ván
+- **Bàn phím:** `A`–`F` chọn ly · `1`–`6` chọn ô · `↑`/`↓` đặt chiều (round 8) · `Esc` huỷ · `R` chơi lại ván
 - **Chơi lại ván:** nút ở góc trên phải dựng lại round đang chơi với lời giải mới, bộ đếm về 0. Các round đã xong giữ nguyên điểm. Lời giải được xáo mới — nếu giữ nguyên thì bạn nhớ hết các ly đã trượt rồi reset để xoá bộ đếm, lách được thử thách trí nhớ.
 
 ---

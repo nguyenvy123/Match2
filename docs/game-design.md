@@ -12,11 +12,11 @@
 | Tên | Match 2 |
 | Thể loại | Suy luận logic (deduction), lượt chơi |
 | Số người chơi | 1 (máy làm Quản trò) |
-| Cấu trúc | 7 round, hai kịch bản nối tiếp |
+| Cấu trúc | 8 round, ba kịch bản nối tiếp |
 | Thời lượng trọn game | 12–25 phút |
 | Chỉ số đo | Số lần đặt ly (round 1–4) / số lượt kiểm tra (round 5–7) |
 
-**Mục tiêu:** Người chơi phải tìm ra chính xác **loại ly** và **vị trí** của các chiếc ly bí mật mà Quản trò đã giấu úp kín trên bàn. Hoàn thành cả 7 round là thắng game.
+**Mục tiêu:** Người chơi phải tìm ra chính xác **loại ly** và **vị trí** của các chiếc ly bí mật mà Quản trò đã giấu úp kín trên bàn. Hoàn thành cả 8 round là thắng game.
 
 ---
 
@@ -39,9 +39,9 @@ Ví dụ round 1 có 3 ô, thì bộ dự phòng có đúng 3 loại: **A Đỏ*
 
 ---
 
-## 3. Cấu trúc 7 round
+## 3. Cấu trúc 8 round
 
-Game có **hai kịch bản** nối tiếp nhau.
+Game có **ba kịch bản** nối tiếp nhau.
 
 | | Round 1–4 · Đặt ly | Round 5–7 · Hoán đổi |
 |---|---|---|
@@ -63,7 +63,8 @@ Kịch bản hoán đổi **khó hơn hẳn** ở cùng số ly, vì mỗi lư�
 | 4 | Đặt ly | 6 | A B C D E F | 720 | Bàn đặt ly rộng nhất |
 | 5 | 🔄 Hoán đổi | 3 | A B C | 6 | **Đổi kịch bản** — bàn tập |
 | 6 | 🔄 Hoán đổi | 5 | A B C D E | 120 | Bàn thật |
-| 7 | 🔄 Hoán đổi | 6 | A B C D E F | 720 | Thử thách cuối |
+| 7 | 🔄 Hoán đổi | 6 | A B C D E F | 720 | Bàn hoán đổi lớn nhất |
+| 8 | 🙃 Lật ly | 3 | A B C | 18 | **Đổi kịch bản** — thử thách cuối |
 
 Bộ ly **cộng dồn**: round sau giữ nguyên các màu cũ và thêm 1 màu mới. Người chơi quen mặt dần, không phải học lại bảng màu mỗi round.
 
@@ -244,6 +245,48 @@ Khoảng cách này là **biên độ kỹ năng** — càng suy luận tốt c�
 
 ---
 
+## 6c. Kịch bản lật ly (round 8)
+
+### 6c.1 Luật
+
+Bàn trống như round 1–4, kéo ly từ khay vào ô. Khác biệt: mỗi ô cần đúng **cả loại ly lẫn chiều** — úp hay ngửa.
+
+```
+1. Chọn một ly trong khay
+2. Bấm ⟲ (hoặc phím ↑ ngửa / ↓ úp) để đặt chiều
+3. Đặt vào ô — quản trò trả lời ngay
+4. ĐÚNG  -> khóa ô, ly vẽ đúng chiều vĩnh viễn
+   SAI   -> thử lại, KHÔNG biết sai vì ly hay vì chiều
+```
+
+### 6c.2 Ràng buộc "đúng 1 ly úp"
+
+Trong 3 ly có **đúng 1 ly úp**, hai ly còn lại ngửa — không phải mỗi ô tung đồng xu riêng.
+
+Đây là **trụ cột của thiết kế**, không phải chi tiết phụ. Nếu chiều độc lập từng ô thì nó không phải tài nguyên dùng chung và luật loại trừ mất tác dụng hoàn toàn: mô phỏng bản thiết kế đầu (6 ly, đồng xu độc lập) cho thấy người chơi dò cạn và người chơi biết suy luận tốn **y hệt nhau 24.0 lần đặt**.
+
+Với ràng buộc này, đặt được ly úp rồi thì các ô còn lại chắc chắn ngửa — và **ô cuối lại miễn phí** như các round đặt ly khác.
+
+Bộ đếm dưới khay hiện số ly úp còn lại, để người chơi không phải tự nhớ.
+
+### 6c.3 Không gian lời giải
+
+`3! × C(3,1) = 6 × 3 =` **18 tổ hợp**.
+
+### 6c.4 Cân bằng
+
+Đo bằng mô phỏng 200 000 ván:
+
+| Lối chơi | TB lần đặt | Xấu nhất |
+|---|---|---|
+| Tối ưu (lọc dần 18 tổ hợp) | 6.8 | 11 |
+| **Thực tế** (nhớ ly đã khóa + đếm ly úp) | **6.5** | 10 |
+| Không biết luật "đúng 1 úp" | 7.0 | 10 |
+
+Nặng hơn round 1 (cùng 3 ly, 4.5) đúng 1.4×, không vượt round 4 (13.5).
+
+---
+
 ## 7. Điều kiện kết thúc
 
 ### 7.1 Chơi lại ván
@@ -256,7 +299,7 @@ Người chơi có thể dựng lại round đang chơi bất cứ lúc nào. B�
 
 - **Qua round** khi tất cả các ô đều KHÓA.
 - Màn chuyển round hiển thị: lời giải vừa rồi, số lần đặt của round, xếp hạng round.
-- **Thắng game** sau khi hoàn thành round 7. Màn tổng kết hiển thị số lần đặt từng round + tổng cộng + xếp hạng chung cuộc.
+- **Thắng game** sau khi hoàn thành round 8. Màn tổng kết hiển thị số lần đặt từng round + tổng cộng + xếp hạng chung cuộc.
 
 ---
 
@@ -276,14 +319,14 @@ LOCKED     <- đã nhận "ĐÚNG", cố định vĩnh viễn trong round này
 ROUND_SETUP   -> sinh lời giải ngẫu nhiên cho round hiện tại
 PLAYING       -> vòng lặp đặt ly / phản hồi
 ROUND_CLEARED -> tất cả ô LOCKED, hiện kết quả round
-GAME_WON      -> đã qua round 7
+GAME_WON      -> đã qua round 8
 ```
 
 ### 8.3 Mô hình dữ liệu
 
 ```
 Game:
-    currentRound   : 1..7
+    currentRound   : 1..8
     roundResults   : [ { round, attempts, rank } ]
     totalAttempts  : số nguyên
 
@@ -507,7 +550,7 @@ Màn chuyển hiển thị: lời giải vừa giải, số lần đặt, xếp 
 
 ### Có
 
-- 7 round, hai kịch bản: đặt ly (1–4) và hoán đổi (5–7)
+- 8 round, ba kịch bản: đặt ly (1–4), hoán đổi (5–7), lật ly (8)
 - Bộ ly cộng dồn qua các round
 - Phản hồi ĐÚNG / SAI tức thì
 - Sửa sai lập tức (đổi ly hoặc đổi ô)

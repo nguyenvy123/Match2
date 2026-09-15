@@ -953,6 +953,44 @@ body::before {
   .cup-chip { width: 1.35em; height: 1.35em; }
 }
 
+/* ---------- Kịch bản lật ly (round 8) ---------- */
+
+/* Thanh điều khiển chiều ly + bộ đếm ly úp còn lại. Bộ đếm là thứ khiến luật
+   loại trừ dùng được — không có nó người chơi phải tự nhớ đã đặt mấy ly úp. */
+.flip-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+.flip-bar__counter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--text-label);
+  color: var(--ink);
+}
+
+.flip-bar__icon {
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+/* Ly đang chọn ở chiều úp — xoay mượt để người chơi thấy rõ thao tác lật */
+.cup--flipped {
+  transition: none;
+}
+
+.tray-cup[data-selected='true'] .cup {
+  transition: transform var(--dur-normal) var(--ease-bounce);
+}
+
 /* ---------- Kéo thả ---------- */
 
 /* Bản sao chiếc ly bám theo con trỏ khi kéo */

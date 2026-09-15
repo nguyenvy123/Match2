@@ -15,13 +15,14 @@ export const CUPS = [
   { id: 'G', name: 'Xanh lá', hex: '#7FBF6A', ink: '#000000' },
 ];
 
-export const TOTAL_ROUNDS = 7;
+export const TOTAL_ROUNDS = 8;
 const FIRST_ROUND_SIZE = 3;
 const DOUBLE_UNLOCK_SIZE = 5;
 
-/** Hai kịch bản chơi. */
+/** Ba kịch bản chơi. */
 export const MODE_PLACE = 'PLACE';   // round 1–4: lấy ly từ khay đặt vào ô
 export const MODE_SWAP = 'SWAP';     // round 5–7: hoán đổi các ly có sẵn
+export const MODE_FLIP = 'FLIP';     // round 8: đặt ly đúng cả loại lẫn chiều
 
 // round → số ly. Round 5 chỉ 3 ly: đây là bàn tập để làm quen với luật hoán
 // đổi trước khi vào bàn thật, vì phản hồi ở kịch bản này chỉ là một con số —
@@ -31,6 +32,25 @@ export const MODE_SWAP = 'SWAP';     // round 5–7: hoán đổi các ly có s�
 // Giữ lại trong CUPS để sẵn sàng nếu thêm bàn rộng hơn về sau.
 const SWAP_ROUNDS = { 5: 3, 6: 5, 7: 6 };
 
+// Round 8 chỉ 3 ly: mỗi lần thử phải đúng CẢ loại ly lẫn chiều, nên số lượt
+// tăng nhanh theo số ly. Mô phỏng cho thấy 6 ly tốn tới 24 lần đặt — gần gấp
+// đôi round khó nhất hiện tại.
+const FLIP_ROUNDS = { 8: 3 };
+
+/**
+ * Số ly úp trong lời giải round 8, CỐ ĐỊNH — không phải mỗi ô tung đồng xu.
+ *
+ * Ràng buộc này là trụ cột của thiết kế, không phải chi tiết phụ. Nếu chiều
+ * độc lập từng ô thì nó không phải tài nguyên dùng chung, luật loại trừ mất
+ * tác dụng hoàn toàn: mô phỏng cho thấy người chơi dò cạn và người chơi biết
+ * suy luận tốn y hệt nhau. Với "đúng 1 úp", khóa được ly úp rồi thì các ô còn
+ * lại chắc chắn ngửa — và ô cuối lại miễn phí như các round đặt ly khác.
+ */
+const FLIP_UPSIDE_DOWN = 1;
+
+export const ORIENT_UP = 'UP';       // ly úp
+export const ORIENT_DOWN = 'DOWN';   // ly ngửa (chiều thường)
+
 export const SLOT_EMPTY = 'EMPTY';
 export const SLOT_LOCKED = 'LOCKED';
 
@@ -39,7 +59,9 @@ export const VERDICT_NO = 'NO';
 
 /** Kịch bản của một round. */
 export function roundMode(round) {
-  return round in SWAP_ROUNDS ? MODE_SWAP : MODE_PLACE;
+  if (round in FLIP_ROUNDS) return MODE_FLIP;
+  if (round in SWAP_ROUNDS) return MODE_SWAP;
+  return MODE_PLACE;
 }
 
 /**
@@ -48,7 +70,7 @@ export function roundMode(round) {
  * vì phản hồi chỉ là một con số chứ không chỉ ra ly nào đúng.
  */
 export function roundSize(round) {
-  return SWAP_ROUNDS[round] ?? FIRST_ROUND_SIZE + (round - 1);
+  return FLIP_ROUNDS[round] ?? SWAP_ROUNDS[round] ?? FIRST_ROUND_SIZE + (round - 1);
 }
 
 /** Round có mở quyền Đặt đôi không (chỉ áp dụng cho kịch bản đặt ly). */
@@ -73,9 +95,18 @@ export function canDouble(round) {
  */
 const SWAP_OPTIMAL = { 3: 2.9, 5: 4.7, 6: 5.7 };
 
+/**
+ * Kịch bản lật ly (round 8) — đo bằng mô phỏng 200 000 ván với người chơi
+ * thực tế (nhớ ly đã khóa + đếm ly úp còn lại). Người chơi tối ưu tuyệt đối
+ * tốn 6.8; không biết luật "đúng 1 úp" tốn 7.0.
+ */
+const FLIP_OPTIMAL = { 3: 6.5 };
+
 export function optimalAverage(round) {
   const n = roundSize(round);
-  if (roundMode(round) === MODE_SWAP) return SWAP_OPTIMAL[n];
+  const mode = roundMode(round);
+  if (mode === MODE_SWAP) return SWAP_OPTIMAL[n];
+  if (mode === MODE_FLIP) return FLIP_OPTIMAL[n];
   let total = 0;
   for (let i = 0; i < n - 1; i++) total += (n - i + 1) / 2;
   return total + 1;
@@ -136,6 +167,18 @@ function startingArrangement(palette, solution, rng) {
   return best;
 }
 
+/**
+ * Sinh chiều ly cho round lật: đúng `upCount` ô úp, còn lại ngửa.
+ *
+ * KHÔNG tung đồng xu từng ô — nếu làm vậy, chiều không phải tài nguyên dùng
+ * chung và luật loại trừ mất tác dụng hoàn toàn. Xem `FLIP_UPSIDE_DOWN`.
+ */
+function randomOrientation(size, upCount, rng) {
+  const slots = shuffled([...Array(size).keys()], rng).slice(0, upCount);
+  const upSlots = new Set(slots);
+  return Array.from({ length: size }, (_, i) => (upSlots.has(i) ? ORIENT_UP : ORIENT_DOWN));
+}
+
 /** Tạo state cho một round. Bộ ly cộng dồn: round n dùng n loại đầu tiên. */
 export function createRound(round, rng = Math.random) {
   const size = roundSize(round);
@@ -160,6 +203,24 @@ export function createRound(round, rng = Math.random) {
       cleared: false,
       lastHits: null,            // số ly đúng của lần kiểm tra gần nhất
       history: [],               // [{ turn, arrangement, hits }]
+    };
+  }
+
+  if (mode === MODE_FLIP) {
+    return {
+      round,
+      mode,
+      size,
+      palette,
+      solution,
+      orientation: randomOrientation(size, FLIP_UPSIDE_DOWN, rng),
+      board: Array.from({ length: size }, () => ({ status: SLOT_EMPTY, cup: null })),
+      available: new Set(palette),
+      upLeft: FLIP_UPSIDE_DOWN,   // số ly úp chưa đặt được, để UI hiện bộ đếm
+      attempts: 0,
+      turns: 0,
+      canDouble: false,
+      cleared: false,
     };
   }
 
@@ -211,6 +272,19 @@ function assertPlayable(round, { slot, cup }) {
  * `placements` có 1 phần tử khi đặt đơn, 2 khi đặt đôi.
  * Mutate `round` tại chỗ và trả về kết quả, hoặc { rejected } nếu nước đi sai luật.
  */
+/**
+ * Nước đặt có đúng không.
+ *
+ * Round lật ly đòi hỏi đúng CẢ loại ly lẫn chiều. Sai chiều vẫn trả về SAI
+ * y như sai ly — không phân biệt lý do, giữ đúng tinh thần "SAI không tiết lộ
+ * gì thêm" của các round đặt ly.
+ */
+function isCorrectPlacement(round, { slot, cup, orientation }) {
+  const cupMatch = round.solution[slot] === cup;
+  if (round.mode !== MODE_FLIP) return cupMatch;
+  return cupMatch && round.orientation[slot] === orientation;
+}
+
 export function judge(round, placements) {
   try {
     if (round.cleared) throw new RejectedMove('Round đã hoàn thành');
@@ -235,12 +309,16 @@ export function judge(round, placements) {
   }
 
   round.turns += 1;
-  const results = placements.map(({ slot, cup }) => {
+  const results = placements.map(({ slot, cup, orientation }) => {
     round.attempts += 1;
-    const correct = round.solution[slot] === cup;
+    const correct = isCorrectPlacement(round, { slot, cup, orientation });
     if (correct) {
-      round.board[slot] = { status: SLOT_LOCKED, cup };
+      // Round lật ly lưu luôn chiều vào board để UI vẽ đúng chiều vĩnh viễn.
+      round.board[slot] = round.mode === MODE_FLIP
+        ? { status: SLOT_LOCKED, cup, orientation }
+        : { status: SLOT_LOCKED, cup };
       round.available.delete(cup);
+      if (round.mode === MODE_FLIP && orientation === ORIENT_UP) round.upLeft -= 1;
     }
     return { slot, cup, verdict: correct ? VERDICT_ONE : VERDICT_NO };
   });
@@ -325,6 +403,8 @@ export function advanceRound(game) {
     turns: finished.turns,
     scored,
     solution: [...finished.solution],
+    // Chỉ round lật ly mới có chiều — các round khác để undefined.
+    orientation: finished.orientation ? [...finished.orientation] : undefined,
     rank: rankFor(finished.round, scored),
   };
   game.roundResults.push(record);

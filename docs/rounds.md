@@ -1,6 +1,6 @@
 # Kịch bản các round
 
-Mô tả đầy đủ 7 round của Match 2. Mọi con số ở đây lấy từ `src/game.js` — nếu sửa `SWAP_ROUNDS`, `TOTAL_ROUNDS` hay `SWAP_OPTIMAL` thì phải cập nhật file này theo.
+Mô tả đầy đủ 8 round của Match 2. Mọi con số ở đây lấy từ `src/game.js` — nếu sửa `SWAP_ROUNDS`, `TOTAL_ROUNDS` hay `SWAP_OPTIMAL` thì phải cập nhật file này theo.
 
 ---
 
@@ -14,7 +14,8 @@ Mô tả đầy đủ 7 round của Match 2. Mọi con số ở đây lấy từ
 | 4 | Đặt ly | 6 | A B C D E F | 720 | Bàn đặt ly rộng nhất |
 | 5 | 🔄 Hoán đổi | 3 | A B C | 6 | 🔄 **Đổi kịch bản** — bàn tập |
 | 6 | 🔄 Hoán đổi | 5 | A B C D E | 120 | Bàn thật |
-| 7 | 🔄 Hoán đổi | 6 | A B C D E F | 720 | Thử thách cuối |
+| 7 | 🔄 Hoán đổi | 6 | A B C D E F | 720 | Bàn hoán đổi lớn nhất |
+| 8 | 🙃 Lật ly | 3 | A B C | 18 | 🙃 **Đổi kịch bản** — thử thách cuối |
 
 Bộ ly **cộng dồn**: round sau giữ nguyên các màu cũ và thêm màu mới, nên người chơi quen mặt dần thay vì phải học lại bảng màu.
 
@@ -24,17 +25,49 @@ Bộ ly **cộng dồn**: round sau giữ nguyên các màu cũ và thêm màu m
 
 ---
 
-## 2. Hai kịch bản
+## 1b. Kịch bản lật ly (round 8)
 
-|  | Round 1–4 · Đặt ly | Round 5–7 · Hoán đổi |
+Bàn trống như round 1–4, người chơi kéo ly từ khay vào ô. Khác biệt: mỗi ô cần đúng **cả loại ly lẫn chiều** — úp hay ngửa.
+
+- Trong 3 ly có **đúng 1 ly úp**, hai ly còn lại ngửa. Không phải mỗi ô tung đồng xu riêng.
+- Chọn ly rồi bấm **⟲** (hoặc phím `↑` ngửa / `↓` úp) để đổi chiều trước khi đặt.
+- Sai chiều cũng chỉ nhận **SAI** — quản trò không nói bạn sai vì ly hay vì chiều.
+- Bộ đếm dưới khay theo dõi số ly úp còn lại.
+
+Không gian lời giải: `3! × C(3,1) = 18` tổ hợp.
+
+### Vì sao ràng buộc "đúng 1 ly úp"
+
+Nếu chiều tung đồng xu độc lập từng ô thì nó **không phải tài nguyên dùng chung**, và luật loại trừ mất tác dụng hoàn toàn — biết ô 1 úp không nói gì về ô 2. Mô phỏng bản thiết kế đầu (6 ly, đồng xu độc lập) cho thấy người chơi dò cạn và người chơi biết suy luận tốn **y hệt nhau: 24.0 lần đặt**.
+
+Với "đúng 1 úp": đặt được ly úp rồi thì các ô còn lại chắc chắn ngửa, và **ô cuối lại miễn phí** như các round đặt ly khác.
+
+### Độ khó
+
+Đo bằng mô phỏng 200 000 ván:
+
+| Lối chơi | TB lần đặt | Xấu nhất |
 |---|---|---|
-| Bàn khởi đầu | Trống (ly úp kín) | Đã đầy ly, thứ tự bị xáo |
-| Khay dự phòng | Có | **Không** |
-| Thao tác | Lấy ly từ khay đặt vào ô | Đổi chỗ hai ly trên bàn |
-| Khi nào quản trò trả lời | Ngay khi ly chạm bàn | Khi bấm **Kiểm tra** |
-| Nội dung phản hồi | "ĐÚNG" / "SAI" cho **từng ô** | **Số ly** đúng vị trí, không nói ly nào |
-| Đơn vị đo | Số lần đặt ly | Số lượt kiểm tra |
-| Lịch sử | **Không hiển thị** — phải tự nhớ | **Có bảng "Đã thử"** |
+| Tối ưu (lọc dần 18 tổ hợp) | 6.8 | 11 |
+| **Thực tế** (nhớ ly đã khóa + đếm ly úp) | **6.5** | 10 |
+| Không biết luật "đúng 1 úp" | 7.0 | 10 |
+
+Nặng hơn round 1 (cùng 3 ly, 4.5) đúng 1.4×, không vượt round 4 (13.5) nên chuỗi độ khó không gãy.
+
+---
+
+## 2. Ba kịch bản
+
+|  | Round 1–4 · Đặt ly | Round 5–7 · Hoán đổi | Round 8 · Lật ly |
+|---|---|---|---|
+| Bàn khởi đầu | Trống | Đã đầy ly, thứ tự bị xáo | Trống |
+| Khay dự phòng | Có | **Không** | Có |
+| Thao tác | Lấy ly từ khay đặt vào ô | Đổi chỗ hai ly trên bàn | Đặt ly **kèm chọn chiều** |
+| Khi nào quản trò trả lời | Ngay khi ly chạm bàn | Khi bấm **Kiểm tra** | Ngay khi ly chạm bàn |
+| Nội dung phản hồi | "ĐÚNG" / "SAI" cho **từng ô** | **Số ly** đúng vị trí, không nói ly nào | "ĐÚNG" / "SAI" — sai ly hay sai chiều đều như nhau |
+| Số ẩn số mỗi ô | 1 (loại ly) | 1 (loại ly) | **2** (loại ly + chiều) |
+| Đơn vị đo | Số lần đặt ly | Số lượt kiểm tra | Số lần đặt ly |
+| Lịch sử | **Không hiển thị** — phải tự nhớ | **Có bảng "Đã thử"** | **Không hiển thị** |
 
 Ở cùng số ly, kịch bản hoán đổi **khó hơn hẳn**: mỗi lượt chỉ thu được một con số thay vì biết chính xác ô nào đúng. Đó là lý do số ly lùi lại ở round 5–7, và round 5 chỉ 3 ly để làm bàn tập.
 

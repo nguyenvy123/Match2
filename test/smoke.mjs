@@ -549,12 +549,126 @@ await page.waitForSelector('.overlay', { state: 'hidden' });
 check(await page.locator('.slot').count() === 6, 'round 7 có 6 ô');
 
 
-console.log('\n--- Kết thúc game ---');
 const solved7 = await solveSwapRound();
 check(solved7, 'giải được round 7 bằng hoán đổi');
 await page.waitForSelector('.overlay:not([hidden])', { timeout: 24000 });
+const flipIntro = await page.locator('.panel__body').textContent();
+check(flipIntro.includes('Lật ly'), 'màn chuyển round 8 giới thiệu kịch bản lật ly');
+check(flipIntro.includes('đúng 1 ly úp'), 'nói rõ luật đúng 1 ly úp');
+check(flipIntro.includes('không phải gợi ý chiều'), 'cảnh báo ô trống không phải gợi ý');
+await page.click('.panel .btn');
+await page.waitForSelector('.overlay', { state: 'hidden' });
+
+console.log('\n--- Kịch bản lật ly (round 8) ---');
+
+check(await page.locator('.slot').count() === 3, 'round 8 có 3 ô');
+check(await page.locator('.tray-cup').count() === 3, 'round 8 có 3 ly trong khay');
+check(await page.locator('.flip-bar').isVisible(), 'hiện thanh điều khiển chiều ly');
+check((await page.locator('.flip-bar__counter').textContent()).includes('Còn 1 ly úp'),
+  'bộ đếm báo còn 1 ly úp');
+check(await page.locator('.flip-bar .btn').isDisabled(),
+  'nút lật bị vô hiệu khi chưa chọn ly');
+await page.screenshot({ path: `${SHOTS}/19-flip-start.png` });
+
+// Chọn ly → nút lật bật, ly vẽ chiều ngửa mặc định.
+await page.click('.tray-cup:not([data-used="true"])');
+await page.waitForTimeout(220);
+check(!(await page.locator('.flip-bar .btn').isDisabled()), 'chọn ly thì nút lật bật');
+check((await page.locator('.flip-bar .btn').textContent()).includes('ngửa'),
+  'mặc định là chiều ngửa');
+check(await page.locator('.tray-cup[data-selected="true"] .cup--flipped').count() === 0,
+  'ly đang chọn chưa xoay khi ở chiều ngửa');
+
+// Bấm nút lật → ly xoay, nhãn đổi.
+await page.click('.flip-bar .btn');
+await page.waitForTimeout(320);
+check((await page.locator('.flip-bar .btn').textContent()).includes('úp'), 'nút lật đổi sang úp');
+check(await page.locator('.tray-cup[data-selected="true"] .cup--flipped').count() === 1,
+  'ly đang chọn xoay 180° khi ở chiều úp');
+const flipAria = await page.locator('.tray-cup[data-selected="true"]').getAttribute('aria-label');
+check(flipAria.includes('chiều úp'), `aria-label nêu rõ chiều ("${flipAria}")`);
+await page.screenshot({ path: `${SHOTS}/20-flip-selected.png` });
+
+// Phím mũi tên đặt chiều trực tiếp, không toggle.
+await page.keyboard.press('ArrowUp');
+await page.waitForTimeout(220);
+check((await page.locator('.flip-bar .btn').textContent()).includes('ngửa'), 'phím ↑ đặt chiều ngửa');
+await page.keyboard.press('ArrowUp');
+await page.waitForTimeout(160);
+check((await page.locator('.flip-bar .btn').textContent()).includes('ngửa'),
+  'phím ↑ lần hai vẫn ngửa — đặt trực tiếp chứ không toggle');
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(220);
+check((await page.locator('.flip-bar .btn').textContent()).includes('úp'), 'phím ↓ đặt chiều úp');
+
+// Đặt đúng ly nhưng SAI chiều phải nhận SAI.
+const flipSolution = await readFlipSolution();
+const wrongOriSlot = flipSolution.findIndex((s) => !s.up);   // ô cần ngửa
+if (wrongOriSlot !== -1) {
+  await selectFlipCup(flipSolution[wrongOriSlot].cup, true);   // cố tình đặt úp
+  await page.click(`.slot[data-slot="${wrongOriSlot}"]`);
+  await page.waitForTimeout(700);
+  const verdict = (await page.locator('.verdict__text').textContent()).trim();
+  check(verdict === 'Sai', `đúng ly nhưng sai chiều → SAI (nhận "${verdict}")`);
+  check(await page.locator(`.slot[data-slot="${wrongOriSlot}"]`).getAttribute('data-status') === 'EMPTY',
+    'ô không khóa khi sai chiều');
+  await page.waitForTimeout(900);
+}
+
+// Giải trọn round 8: đặt đúng cả ly lẫn chiều.
+for (let i = 0; i < flipSolution.length; i++) {
+  const already = await page.locator(`.slot[data-slot="${i}"]`).getAttribute('data-status');
+  if (already === 'LOCKED') continue;
+  await selectFlipCup(flipSolution[i].cup, flipSolution[i].up);
+  await page.click(`.slot[data-slot="${i}"]`);
+  await page.waitForTimeout(1500);
+}
+check(await page.locator('.slot[data-status="LOCKED"]').count() === 3, 'giải được round 8');
+
+/** Đọc lời giải round lật ly (ly + chiều) qua bảng cheat. */
+async function readFlipSolution() {
+  await page.click('.btn--icon');
+  await page.waitForTimeout(320);
+  const labels = await page.locator('.solution-row .cup')
+    .evaluateAll((ns) => ns.map((n) => n.getAttribute('aria-label')));
+  await page.locator('.panel__actions .btn').nth(1).click();
+  await page.waitForSelector('.overlay', { state: 'hidden' });
+  await page.waitForTimeout(200);
+
+  const byName = await page.evaluate(() => {
+    const m = {};
+    document.querySelectorAll('.tray-cup').forEach((t) => {
+      m[t.getAttribute('aria-label').split(',')[0]] = t.dataset.cup;
+    });
+    return m;
+  });
+  return labels.map((label) => ({
+    cup: byName[label.split(',')[0]],
+    up: label.includes('chiều úp'),
+  }));
+}
+
+/** Chọn ly trong khay và đặt chiều mong muốn. */
+async function selectFlipCup(cupId, wantUp) {
+  // Chờ nút lật hết disabled — nó bị khoá trong lúc `busy` của lượt trước.
+  await page.locator('.tray-cup[data-cup="' + cupId + '"]').waitFor({ state: 'visible' });
+  await page.click(`.tray-cup[data-cup="${cupId}"]`);
+  await page.waitForFunction(
+    () => !document.querySelector('.flip-bar .btn')?.disabled,
+    null,
+    { timeout: 8000 },
+  );
+  const isUp = await page.locator('.tray-cup[data-selected="true"] .cup--flipped').count() === 1;
+  if (isUp !== wantUp) {
+    await page.click('.flip-bar .btn');
+    await page.waitForTimeout(260);
+  }
+}
+
+console.log('\n--- Kết thúc game ---');
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 24000 });
 check((await page.locator('.panel__title').textContent()).includes('Hoàn thành'), 'hiện màn tổng kết');
-check(await page.locator('.score-table tbody tr').count() === 7, 'bảng điểm đủ 7 round');
+check(await page.locator('.score-table tbody tr').count() === 8, 'bảng điểm đủ 8 round');
 await page.waitForTimeout(500);   // chờ animation vào panel xong mới chụp
 await page.screenshot({ path: `${SHOTS}/11-game-over.png` });
 
@@ -568,7 +682,7 @@ check(await page.locator('.btn--icon').isVisible(), 'nút cheat hiện trên tha
 await page.click('.btn--icon');
 await page.waitForTimeout(280);
 check((await page.locator('.panel__title').textContent()).includes('Cheat'), 'mở được bảng cheat');
-check(await page.locator('.cheat__rounds .btn').count() === 7, 'có 7 nút nhảy round');
+check(await page.locator('.cheat__rounds .btn').count() === 8, 'có 8 nút nhảy round');
 check(await page.locator('.solution-row .cup').count() > 0, 'bảng cheat hiện lời giải');
 // Focus phải ở nút hành động, không phải nút round — bấm Enter mà nhảy round
 // ngoài ý muốn thì rất dễ mất tiến độ.
@@ -579,7 +693,7 @@ await page.screenshot({ path: `${SHOTS}/17-cheat.png` });
 // Nhảy tới round 5 (kịch bản hoán đổi) để kiểm tra cheat đổi cả kịch bản.
 await page.locator('.cheat__rounds .btn').nth(4).click();
 await page.waitForSelector('.overlay', { state: 'hidden' });
-check(await page.locator('.stat__value').first().textContent() === '5/7', 'nhảy được tới round 5');
+check(await page.locator('.stat__value').first().textContent() === '5/8', 'nhảy được tới round 5');
 check(await page.locator('.slot').count() === 3, 'round 5 là bàn tập 3 ô');
 check(await page.locator('.swap-bar').isVisible(), 'cheat đổi đúng sang kịch bản hoán đổi');
 
@@ -592,7 +706,7 @@ check(await page.locator('.overlay').isVisible(), 'giải luôn thì hiện màn
 check((await page.locator('.panel__title').textContent()).includes('Round 5'), 'đúng round vừa giải');
 await page.click('.panel .btn');
 await page.waitForSelector('.overlay', { state: 'hidden' });
-check(await page.locator('.stat__value').first().textContent() === '6/7', 'sang round 6');
+check(await page.locator('.stat__value').first().textContent() === '6/8', 'sang round 6');
 
 // Giải nốt round 6 để tới round cuối.
 await page.click('.btn--icon');
@@ -602,15 +716,32 @@ await page.waitForTimeout(900);
 check((await page.locator('.panel__title').textContent()).includes('Round 6'), 'giải luôn được round 6');
 await page.click('.panel .btn');
 await page.waitForSelector('.overlay', { state: 'hidden' });
-check(await page.locator('.stat__value').first().textContent() === '7/7', 'sang round 7');
+check(await page.locator('.stat__value').first().textContent() === '7/8', 'sang round 7');
+
+// Giải nốt round 7 để tới round lật ly.
+await page.click('.btn--icon');
+await page.waitForTimeout(260);
+await page.locator('.panel__actions .btn').first().click();
+await page.waitForTimeout(900);
+check((await page.locator('.panel__title').textContent()).includes('Round 7'), 'giải luôn được round 7');
+await page.click('.panel .btn');
+await page.waitForSelector('.overlay', { state: 'hidden' });
+check(await page.locator('.stat__value').first().textContent() === '8/8', 'sang round 8');
+check(await page.locator('.flip-bar').isVisible(), 'cheat đổi đúng sang kịch bản lật ly');
 
 // Bảng điểm phải đánh dấu các round bị bỏ qua, không lẫn với round chơi thật.
 await page.click('.btn--icon');
 await page.waitForTimeout(260);
 await page.locator('.panel__actions .btn').first().click();
-await page.waitForTimeout(900);
-check((await page.locator('.panel__title').textContent()).includes('Hoàn thành'), 'hiện màn tổng kết');
-check(await page.locator('.score-table tbody tr').count() === 7, 'bảng điểm vẫn đủ 7 dòng');
+// Round 8 giải luôn phải đặt 3 ly, mỗi ly có độ trễ lật ly ~1.3s.
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 20000 });
+await page.waitForFunction(
+  () => document.querySelector('.panel__title')?.textContent?.includes('Hoàn thành'),
+  null,
+  { timeout: 20000 },
+);
+check(true, 'hiện màn tổng kết');
+check(await page.locator('.score-table tbody tr').count() === 8, 'bảng điểm vẫn đủ 8 dòng');
 check(await page.locator('.score-table tr[data-skipped="true"]').count() === 4,
   'các round bị cheat bỏ qua được đánh dấu riêng');
 await page.screenshot({ path: `${SHOTS}/18-cheat-score.png` });

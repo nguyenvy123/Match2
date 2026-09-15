@@ -8,7 +8,7 @@ import {
   CUPS, TOTAL_ROUNDS, createGame, createRound, judge, advanceRound, finalRank,
   optimalAverage, roundSize,
   roundMode, swapSlots, checkArrangement, currentArrangement, countHits,
-  MODE_SWAP,
+  MODE_SWAP, MODE_FLIP, ORIENT_UP, ORIENT_DOWN,
   SLOT_LOCKED, VERDICT_ONE, VERDICT_NO,
 } from './game.js';
 
@@ -61,18 +61,22 @@ function svg(tag, props = {}, children = []) {
  * Vẽ một chiếc ly. Lớp màu được dịch lệch khỏi lớp viền 1–3px —
  * xem art-style.md mục 4.2, đây là thứ tạo cảm giác "tô màu vội".
  */
-function renderCup(cupId, seed, { width = 88, height = 110 } = {}) {
+function renderCup(cupId, seed, { width = 88, height = 110, orientation = null } = {}) {
   const cup = CUP_BY_ID.get(cupId);
   const { body, waist } = handCup(width, height, seed);
   const off = fillOffset(seed);
   const shift = `translate(${off.x.toFixed(1)}, ${off.y.toFixed(1)})`;
 
-  return svg('svg', {
-    class: 'cup',
-    viewBox: `0 0 ${width} ${height}`,
-    role: 'img',
-    'aria-label': `Ly màu ${cup.name}`,
-  }, [
+  // Round lật ly: ly úp vẽ bằng cách xoay 180°. Các round khác không truyền
+  // `orientation` nên không có transform nào — giữ nguyên hành vi cũ.
+  const flipped = orientation === ORIENT_UP;
+  const label = orientation
+    ? `Ly màu ${cup.name}, chiều ${flipped ? 'úp' : 'ngửa'}`
+    : `Ly màu ${cup.name}`;
+
+  const layers = svg('g', flipped
+    ? { transform: `rotate(180 ${width / 2} ${height / 2})` }
+    : {}, [
     // Lớp màu, lệch khỏi viền
     svg('g', { transform: shift }, [
       svg('path', { class: 'cup__fill', d: body, fill: cup.hex }),
@@ -83,6 +87,13 @@ function renderCup(cupId, seed, { width = 88, height = 110 } = {}) {
     // Không in chữ cái lên ly — người chơi phân biệt bằng màu. Tên màu vẫn
     // nằm trong `aria-label` để trình đọc màn hình đọc được.
   ]);
+
+  return svg('svg', {
+    class: `cup${flipped ? ' cup--flipped' : ''}`,
+    viewBox: `0 0 ${width} ${height}`,
+    role: 'img',
+    'aria-label': label,
+  }, [layers]);
 }
 
 /**
@@ -140,6 +151,9 @@ export function mountGame(root) {
   // Các ô vừa chốt nhưng chưa được phép lật ly ẩn ở hàng dưới. Ly chỉ lật sau
   // khi người chơi đã kịp đọc phán xử — nếu lật ngay thì mất hẳn nhịp chờ.
   let pendingReveal = new Set();
+  // Chiều đang định đặt cho ly đang chọn (chỉ dùng ở round lật ly). Mặc định
+  // ngửa vì đa số ô là ngửa — người chơi ít phải bấm lật hơn.
+  let selectedOrientation = ORIENT_DOWN;
 
   const dom = buildShell();
   root.append(dom.app, dom.overlay);
@@ -191,6 +205,7 @@ export function mountGame(root) {
 
     const pairing = el('div', { class: 'pairing', hidden: true });
     const swapBar = el('section', { class: 'swap-bar', hidden: true });
+    const flipBar = el('div', { class: 'flip-bar', hidden: true });
 
     const tray = el('section', { class: 'tray' }, [
       svg('svg', { class: 'tray__rule', viewBox: '0 0 800 10', preserveAspectRatio: 'none', 'aria-hidden': 'true' },
@@ -200,6 +215,7 @@ export function mountGame(root) {
         toggle,
       ]),
       trayCups,
+      flipBar,
     ]);
 
     const app = el('div', { class: 'app' }, [
@@ -226,7 +242,7 @@ export function mountGame(root) {
     const overlay = el('div', { class: 'overlay', hidden: true, role: 'dialog', 'aria-modal': 'true' });
 
     return {
-      app, overlay, table, tray, trayCups, verdictRow, pairing, swapBar, toggle,
+      app, overlay, table, tray, trayCups, verdictRow, pairing, swapBar, flipBar, toggle,
       roundValue: roundStat.querySelector('#round-value'),
       attemptValue: attemptStat.querySelector('#attempt-value'),
       attemptLabel: attemptStat.querySelector('.stat__label'),
@@ -284,10 +300,15 @@ export function mountGame(root) {
       // đã đặt gì ở đâu khi chọn ly thứ hai.
       const heldCup = isArmed ? pending.cup : null;
       const shownCup = locked ? slot.cup : heldCup;
+      // Ly đã chốt ở round lật ly vẽ đúng chiều đã đặt; ly đang giữ vẽ theo
+      // chiều người chơi đang chọn.
+      const shownOrientation = round.mode === MODE_FLIP
+        ? (locked ? slot.orientation : selectedOrientation)
+        : null;
 
       const frame = el('div', { class: 'slot__frame' }, [
         renderFrame('slot__outline', 100, 132, seed, { wobble: 2.4, inset: 4 }),
-        shownCup ? renderCup(shownCup, seed + 500) : null,
+        shownCup ? renderCup(shownCup, seed + 500, { orientation: shownOrientation }) : null,
         locked
           ? svg('svg', { class: 'slot__ticks', viewBox: '0 0 30 22', 'aria-hidden': 'true' },
               handStrikes(30, 22, seed + 77, 2).map((d) => svg('path', { d })))
@@ -323,7 +344,7 @@ export function mountGame(root) {
       // SAU khi người chơi đã đọc xong phán xử (xem `pendingReveal`).
       const readyToReveal = locked && !pendingReveal.has(i);
       const revealed = readyToReveal
-        ? renderCup(slot.cup, seed + 640)
+        ? renderCup(slot.cup, seed + 640, { orientation: slot.orientation ?? null })
         : renderHiddenCup(seed + 500);
       if (readyToReveal) revealed.classList.add('is-revealing');
 
@@ -571,28 +592,39 @@ export function mountGame(root) {
 
   function renderTray() {
     const round = game.active;
+    const flipping = round.mode === MODE_FLIP;
+
     dom.trayCups.replaceChildren(...round.palette.map((cupId, i) => {
       // Ly đang giữ trên ô (chờ ghép cặp) cũng phải vô hiệu trong khay, nếu
       // không người chơi chọn lại chính nó làm ly thứ hai và lách được luật
       // "hai ly phải khác loại".
       const held = pending?.cup === cupId;
       const used = !round.available.has(cupId) || held;
+      const chosen = selectedCup === cupId;
       const seed = seedCounter * 100 + i * 11 + 3;
+
+      // Ly đang chọn ở round lật ly xoay theo chiều sắp đặt — phản hồi tức thì
+      // để người chơi thấy mình sắp đặt úp hay ngửa.
+      const orientation = flipping && chosen ? selectedOrientation : null;
+      const orientNote = flipping && chosen
+        ? `, sắp đặt chiều ${selectedOrientation === ORIENT_UP ? 'úp' : 'ngửa'}`
+        : '';
+
       const node = el('button', {
         class: 'tray-cup',
         type: 'button',
         'data-cup': cupId,
         'data-used': String(used),
         'data-held': String(held),
-        'data-selected': String(selectedCup === cupId),
+        'data-selected': String(chosen),
         disabled: used || busy,
         'aria-label': `Ly màu ${CUP_BY_ID.get(cupId).name}${
-          held ? ', đang giữ trên bàn' : used ? ', đã chốt trên bàn' : ''}`,
-        'aria-pressed': String(selectedCup === cupId),
+          held ? ', đang giữ trên bàn' : used ? ', đã chốt trên bàn' : ''}${orientNote}`,
+        'aria-pressed': String(chosen),
         onclick: () => onCupClick(cupId),
         onpointerdown: (e) => onCupPointerDown(e, cupId),
       }, [
-        renderCup(cupId, seed),
+        renderCup(cupId, seed, { orientation }),
         used && !held
           ? svg('svg', { class: 'tray-cup__strikes', viewBox: '0 0 88 110', 'aria-hidden': 'true' },
               handStrikes(88, 110, seed + 41, 2).map((d) => svg('path', { d })))
@@ -602,6 +634,50 @@ export function mountGame(root) {
       node.style.transform = used ? '' : `rotate(${tilt(seed).toFixed(2)}deg)`;
       return node;
     }));
+
+    // Nút lật chiều — chỉ hiện ở round lật ly khi đã chọn một ly.
+    dom.flipBar.hidden = !flipping;
+    if (flipping) renderFlipControls();
+  }
+
+  /** Thanh điều khiển chiều ly + bộ đếm ly úp còn lại (round 8). */
+  function renderFlipControls() {
+    const round = game.active;
+    const isUp = selectedOrientation === ORIENT_UP;
+
+    dom.flipBar.replaceChildren(
+      el('div', { class: 'flip-bar__counter' }, [
+        el('span', { class: 'flip-bar__icon', text: '🙃', 'aria-hidden': 'true' }),
+        el('span', {
+          text: round.upLeft > 0
+            ? `Còn ${round.upLeft} ly úp`
+            : 'Hết ly úp — các ô còn lại đều ngửa',
+        }),
+      ]),
+      handButton(
+        isUp ? '⟲ Đang úp' : '⟲ Đang ngửa',
+        toggleOrientation,
+        {
+          seed: 77,
+          variant: isUp ? '' : 'btn--ghost',
+          disabled: !selectedCup || busy,
+          title: 'Đổi chiều ly sắp đặt (phím ↑ ngửa, ↓ úp)',
+        },
+      ),
+    );
+  }
+
+  /** Đổi chiều ly sắp đặt. */
+  function toggleOrientation() {
+    setOrientation(selectedOrientation === ORIENT_UP ? ORIENT_DOWN : ORIENT_UP);
+  }
+
+  function setOrientation(next) {
+    if (busy || game.active.mode !== MODE_FLIP) return;
+    if (selectedOrientation === next) return;
+    selectedOrientation = next;
+    renderTray();
+    renderTable();
   }
 
   function renderVerdicts() {
@@ -833,8 +909,12 @@ export function mountGame(root) {
 
   function onCupClick(cupId) {
     if (busy) return;
-    selectedCup = selectedCup === cupId ? null : cupId;
+    const wasSelected = selectedCup === cupId;
+    selectedCup = wasSelected ? null : cupId;
+    // Chọn ly mới thì chiều về mặc định ngửa — giữ chiều cũ dễ gây đặt nhầm.
+    if (!wasSelected) selectedOrientation = ORIENT_DOWN;
     renderTray();
+    if (game.active.mode === MODE_FLIP) renderTable();
   }
 
   function onSlotClick(slotIndex) {
@@ -857,7 +937,10 @@ export function mountGame(root) {
       return;
     }
 
-    const placement = { slot: slotIndex, cup: selectedCup };
+    // Round lật ly gửi kèm chiều; các round khác không có trường này.
+    const placement = game.active.mode === MODE_FLIP
+      ? { slot: slotIndex, cup: selectedCup, orientation: selectedOrientation }
+      : { slot: slotIndex, cup: selectedCup };
     const pairingActive = game.active.canDouble && openSlotCount() >= 2;
 
     if (pairingActive && !pending) {
@@ -964,7 +1047,7 @@ export function mountGame(root) {
     if (!node) return;
 
     const seed = seedCounter * 100 + slotIndex * 7 + 13;
-    const cupNode = renderCup(slot.cup, seed + 640);
+    const cupNode = renderCup(slot.cup, seed + 640, { orientation: slot.orientation ?? null });
     cupNode.classList.add('is-revealing');
 
     node.dataset.solved = 'true';
@@ -1126,6 +1209,7 @@ export function mountGame(root) {
     // trên bàn mới khi bộ đếm đã về 0.
     verdicts = [];
     swapPick = null;
+    selectedOrientation = ORIENT_DOWN;
 
     if (game.finished) {
       showGameOver();
@@ -1139,12 +1223,26 @@ export function mountGame(root) {
     // Round 6 đổi hẳn kịch bản — phải giải thích luật mới, không chỉ báo số ô.
     // Đây cũng là bàn tập 3 ly, nên màn này đóng luôn vai hướng dẫn.
     const entersSwap = nextMode === MODE_SWAP && roundMode(nextRound - 1) !== MODE_SWAP;
+    // Round 8 đổi kịch bản lần nữa — thêm ẩn số thứ hai là chiều ly.
+    const entersFlip = nextMode === MODE_FLIP && roundMode(nextRound - 1) !== MODE_FLIP;
 
     const spent = record.mode === MODE_SWAP
       ? `Bạn dùng <strong>${record.turns}</strong> lượt (trung bình tối ưu là ${optimalAverage(record.round).toFixed(1)}).`
       : `Bạn đặt <strong>${record.attempts}</strong> lần (trung bình tối ưu là ${optimalAverage(record.round).toFixed(1)}).`;
 
-    const nextIntro = entersSwap
+    const nextIntro = entersFlip
+      ? [
+          el('p', { html: '🙃 <strong>Thử thách cuối: Lật ly.</strong>' }),
+          el('ul', {}, [
+            el('li', { html: `Vẫn đặt ly như round 1–4, nhưng giờ mỗi ô cần đúng <strong>cả loại ly lẫn chiều</strong> — úp hay ngửa.` }),
+            el('li', { html: `Trong <strong>${nextSize} ly</strong> có <strong>đúng 1 ly úp</strong>, hai ly còn lại ngửa.` }),
+            el('li', { html: 'Chọn ly rồi bấm <strong>⟲</strong> để đổi chiều trước khi đặt.' }),
+            el('li', { html: 'Sai chiều cũng chỉ nhận <strong>SAI</strong> — quản trò không nói bạn sai vì ly hay vì chiều.' }),
+          ]),
+          el('p', { html: '👉 Đặt được ly úp rồi thì các ô còn lại <strong>chắc chắn ngửa</strong> — bộ đếm dưới khay theo dõi giúp bạn.' }),
+          el('p', { class: 'hint', text: 'Hình ly mờ ở ô trống chỉ là chỗ đặt — không phải gợi ý chiều. Phím ↑ ngửa, ↓ úp.' }),
+        ]
+      : entersSwap
       ? [
           el('p', { html: '🔄 <strong>Kịch bản mới bắt đầu từ đây.</strong>' }),
           el('ul', {}, [
@@ -1158,7 +1256,9 @@ export function mountGame(root) {
       : [
           el('p', { html: nextMode === MODE_SWAP
             ? `Tiếp theo: <strong>Round ${nextRound}</strong> — hoán đổi <strong>${nextSize} ly</strong>.`
-            : `Tiếp theo: <strong>Round ${nextRound}</strong> với <strong>${nextSize} ô</strong> và ${nextSize} loại ly.` }),
+            : nextMode === MODE_FLIP
+              ? `Tiếp theo: <strong>Round ${nextRound}</strong> — lật ly, <strong>${nextSize} ly</strong>.`
+              : `Tiếp theo: <strong>Round ${nextRound}</strong> với <strong>${nextSize} ô</strong> và ${nextSize} loại ly.` }),
           unlocksDouble
             ? el('p', { html: '⚡ <strong>Đặt đôi bắt đầu từ đây.</strong> Mỗi lượt bạn phải đặt 2 ly vào 2 ô khác nhau, chọn cả hai trước khi biết kết quả nào. Ô cuối cùng còn lẻ thì đặt 1 ly.' })
             : null,
@@ -1170,7 +1270,9 @@ export function mountGame(root) {
       el('p', { html: spent }),
       el('p', { text: 'Lời giải:' }),
       el('div', { class: 'solution-row' },
-        record.solution.map((cupId, i) => renderCup(cupId, 700 + i * 13))),
+        record.solution.map((cupId, i) => renderCup(cupId, 700 + i * 13, {
+          orientation: record.orientation?.[i] ?? null,
+        }))),
       ...nextIntro,
     ], [
       handButton(`Vào round ${nextRound}`, () => { closePanel(); renderAll(); }, { seed: 20 + nextRound }),
@@ -1189,7 +1291,7 @@ export function mountGame(root) {
       'data-skipped': String(Boolean(r.skipped)),
     }, [
       el('td', { text: `Round ${r.round}` }),
-      el('td', { text: r.mode === MODE_SWAP ? '🔄 Hoán đổi' : 'Đặt ly' }),
+      el('td', { text: r.mode === MODE_SWAP ? '🔄 Hoán đổi' : r.mode === MODE_FLIP ? '🙃 Lật ly' : 'Đặt ly' }),
       el('td', { text: r.skipped ? '—' : '⭐'.repeat(r.rank.stars) }),
       el('td', { text: r.skipped ? 'bỏ qua' : String(r.scored) }),
     ]));
@@ -1208,7 +1310,7 @@ export function mountGame(root) {
           el('td', { text: String(final.totalAttempts) }),
         ])]),
       ]),
-      el('p', { class: 'hint', html: `Điểm là số lần đặt ly (round 1–4) và số lượt kiểm tra (round 5–7). Người chơi tối ưu cần khoảng <strong>${final.optimal}</strong> điểm cho cả ${TOTAL_ROUNDS} round.` }),
+      el('p', { class: 'hint', html: `Điểm là số lần đặt ly (round 1–4, 8) và số lượt kiểm tra (round 5–7). Người chơi tối ưu cần khoảng <strong>${final.optimal}</strong> điểm cho cả ${TOTAL_ROUNDS} round.` }),
     ], [
       handButton('Chơi lại', restart, { seed: 33 }),
     ]);
@@ -1246,6 +1348,7 @@ export function mountGame(root) {
     pending = null;
     swapPick = null;
     verdicts = [];
+    selectedOrientation = ORIENT_DOWN;
     busy = false;
     seedCounter += 1;
     closePanel();
@@ -1264,14 +1367,15 @@ export function mountGame(root) {
 
     const roundButtons = Array.from({ length: TOTAL_ROUNDS }, (_, i) => {
       const target = i + 1;
-      const swap = roundMode(target) === MODE_SWAP;
+      const mode = roundMode(target);
+      const icon = mode === MODE_SWAP ? ' 🔄' : mode === MODE_FLIP ? ' 🙃' : '';
       return handButton(
-        `${target}${swap ? ' 🔄' : ''}`,
+        `${target}${icon}`,
         () => jumpToRound(target),
         {
           seed: 200 + target,
           variant: target === game.currentRound ? 'btn--small' : 'btn--ghost btn--small',
-          title: `Round ${target} — ${swap ? 'hoán đổi' : 'đặt ly'} ${roundSize(target)} ly`,
+          title: `Round ${target} — ${mode === MODE_SWAP ? 'hoán đổi' : mode === MODE_FLIP ? 'lật ly' : 'đặt ly'} ${roundSize(target)} ly`,
         },
       );
     });
@@ -1284,7 +1388,9 @@ export function mountGame(root) {
 
       el('h3', { class: 'cheat__label', text: `Lời giải round ${round.round}` }),
       el('div', { class: 'solution-row' },
-        round.solution.map((cupId, i) => renderCup(cupId, 900 + i * 17))),
+        round.solution.map((cupId, i) => renderCup(cupId, 900 + i * 17, {
+          orientation: round.orientation?.[i] ?? null,
+        }))),
 
       round.mode === MODE_SWAP
         ? el('p', { class: 'hint', html: `Đang đúng <strong>${countHits(currentArrangement(round), round.solution)}/${round.size}</strong> ly.` })
@@ -1325,6 +1431,7 @@ export function mountGame(root) {
     pending = null;
     swapPick = null;
     verdicts = [];
+    selectedOrientation = ORIENT_DOWN;
     busy = false;
     seedCounter += 1;
     closePanel();
@@ -1342,6 +1449,11 @@ export function mountGame(root) {
         if (arr[i] !== round.solution[i]) swapSlots(round, i, arr.indexOf(round.solution[i]));
       }
       checkArrangement(round);
+    } else if (round.mode === MODE_FLIP) {
+      // Round lật ly cần cả chiều, không chỉ loại ly.
+      round.solution.forEach((cup, slot) => {
+        judge(round, [{ slot, cup, orientation: round.orientation[slot] }]);
+      });
     } else {
       round.solution.forEach((cup, slot) => judge(round, [{ slot, cup }]));
     }
@@ -1359,6 +1471,7 @@ export function mountGame(root) {
     pending = null;
     swapPick = null;
     verdicts = [];
+    selectedOrientation = ORIENT_DOWN;
     busy = false;
     seedCounter += 1;
     closePanel();
@@ -1392,6 +1505,14 @@ export function mountGame(root) {
     // Nên C chỉ mở cheat khi bấm kèm Shift để không xung đột với việc chọn ly C.
     if (key === 'R') {
       askResetRound();
+      return;
+    }
+
+    // Phím mũi tên đặt chiều trực tiếp (không toggle) ở round lật ly.
+    // preventDefault để trình duyệt không cuộn trang.
+    if (game.active.mode === MODE_FLIP && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      setOrientation(e.key === 'ArrowUp' ? ORIENT_DOWN : ORIENT_UP);
       return;
     }
     if (key === 'C' && e.shiftKey) {

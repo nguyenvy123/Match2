@@ -7,7 +7,7 @@ import {
   CUPS, TOTAL_ROUNDS, roundSize, canDouble, optimalAverage, rankFor,
   createRound, createGame, judge, advanceRound, finalRank, buildExclusions,
   roundMode, swapSlots, checkArrangement, currentArrangement, countHits,
-  MODE_PLACE, MODE_SWAP,
+  MODE_PLACE, MODE_SWAP, MODE_FLIP, ORIENT_UP, ORIENT_DOWN,
   SLOT_EMPTY, SLOT_LOCKED, VERDICT_ONE, VERDICT_NO,
 } from './game.js';
 
@@ -229,25 +229,36 @@ test('qua round thì tăng currentRound và tạo bàn mới', () => {
   ok(!g.finished);
 });
 
-test('chơi hết 7 round thì game kết thúc', () => {
+/** Giải một round bằng cách đặt/xếp thẳng theo lời giải đã biết. */
+function playRoundPerfectly(round) {
+  if (round.mode === MODE_SWAP) {
+    for (let i = 0; i < round.size; i++) {
+      const arr = currentArrangement(round);
+      if (arr[i] !== round.solution[i]) swapSlots(round, i, arr.indexOf(round.solution[i]));
+    }
+    checkArrangement(round);
+    return;
+  }
+  if (round.mode === MODE_FLIP) {
+    round.solution.forEach((cup, slot) => {
+      judge(round, [{ slot, cup, orientation: round.orientation[slot] }]);
+    });
+    return;
+  }
+  round.solution.forEach((cup, slot) => judge(round, [{ slot, cup }]));
+}
+
+test('chơi hết 8 round thì game kết thúc', () => {
   const g = createGame(seededRng(99));
   for (let r = 1; r <= TOTAL_ROUNDS; r++) {
-    const round = g.active;
-    if (round.mode === MODE_SWAP) {
-      for (let i = 0; i < round.size; i++) {
-        const arr = currentArrangement(round);
-        if (arr[i] !== round.solution[i]) swapSlots(round, i, arr.indexOf(round.solution[i]));
-      }
-      checkArrangement(round);
-    } else {
-      round.solution.forEach((cup, slot) => judge(round, [{ slot, cup }]));
-    }
+    playRoundPerfectly(g.active);
     advanceRound(g);
   }
-  ok(g.finished, 'game chưa kết thúc sau round 7');
-  eq(g.roundResults.length, 7);
-  // Round 1–4 đặt ly: mỗi ô 1 lần đặt. Round 5–7 hoán đổi: mỗi round 1 lượt kiểm tra.
-  eq(g.totalAttempts, 3 + 4 + 5 + 6 + 1 + 1 + 1);
+  ok(g.finished, 'game chưa kết thúc sau round 8');
+  eq(g.roundResults.length, 8);
+  // Round 1–4 đặt ly: mỗi ô 1 lần đặt. Round 5–7 hoán đổi: mỗi round 1 lượt
+  // kiểm tra. Round 8 lật ly: 3 ô, mỗi ô 1 lần đặt (biết sẵn lời giải).
+  eq(g.totalAttempts, 3 + 4 + 5 + 6 + 1 + 1 + 1 + 3);
 });
 
 console.log('\n--- Xếp hạng ---');
@@ -306,6 +317,24 @@ function playRound(r) {
     checkArrangement(r);
     return;
   }
+  if (r.mode === MODE_FLIP) {
+    // Dò cạn: mỗi ly thử chiều ngửa trước rồi úp. Tận dụng luật "đúng 1 úp" —
+    // hết quota ly úp thì chỉ còn thử chiều ngửa.
+    for (let slot = 0; slot < r.size && !r.cleared; slot++) {
+      let done = false;
+      for (const cup of [...r.available]) {
+        const orientations = r.upLeft > 0 ? [ORIENT_DOWN, ORIENT_UP] : [ORIENT_DOWN];
+        for (const orientation of orientations) {
+          if (judge(r, [{ slot, cup, orientation }]).results?.[0].verdict === VERDICT_ONE) {
+            done = true;
+            break;
+          }
+        }
+        if (done) break;
+      }
+    }
+    return;
+  }
   // Kịch bản đặt ly — dò cạn từng ô, chỉ thử các ly chưa khóa.
   for (let slot = 0; slot < r.size && !r.cleared; slot++) {
     for (const cup of [...r.available]) {
@@ -329,6 +358,11 @@ test('1000 ván ngẫu nhiên: luôn giải được, attempts nằm trong biên
       if (roundMode(rec.round) === MODE_SWAP) {
         // Giải bằng hoán đổi rồi kiểm tra một lần duy nhất.
         eq(rec.attempts, 1, `seed ${seed} round ${rec.round}`);
+      } else if (roundMode(rec.round) === MODE_FLIP) {
+        // Xấu nhất: mỗi ô thử hết ly còn lại × 2 chiều.
+        const worst = n * (n + 1);
+        ok(rec.attempts >= n, `seed ${seed}: attempts ${rec.attempts} < ${n}`);
+        ok(rec.attempts <= worst, `seed ${seed}: attempts ${rec.attempts} > ${worst}`);
       } else {
         const worst = (n * (n + 1)) / 2; // xấu nhất theo tài liệu mục 9.1
         ok(rec.attempts >= n, `seed ${seed}: attempts ${rec.attempts} < ${n}`);
@@ -522,20 +556,17 @@ test('lịch sử ghi lại đủ các lượt đã thử', () => {
   ok(typeof r.history[0].hits === 'number');
 });
 
-test('chơi được xuyên suốt 7 round, hai kịch bản nối nhau', () => {
+test('chơi được xuyên suốt 8 round, ba kịch bản nối nhau', () => {
   const g = createGame(seededRng(77));
   while (!g.finished) {
     const r = g.active;
-    if (r.mode === MODE_SWAP) {
-      solveBySwaps(r);
-      checkArrangement(r);
-    } else {
-      r.solution.forEach((cup, slot) => judge(r, [{ slot, cup }]));
-    }
+    playRoundPerfectly(r);
     ok(advanceRound(g), `round ${r.round} không qua được`);
   }
-  eq(g.roundResults.length, 7);
-  eq(g.roundResults.map((x) => x.round), [1, 2, 3, 4, 5, 6, 7]);
+  eq(g.roundResults.length, 8);
+  eq(g.roundResults.map((x) => x.round), [1, 2, 3, 4, 5, 6, 7, 8]);
+  eq(g.roundResults.map((x) => x.mode),
+    ['PLACE', 'PLACE', 'PLACE', 'PLACE', 'SWAP', 'SWAP', 'SWAP', 'FLIP']);
 });
 
 test('500 ván hoán đổi ngẫu nhiên: luôn giải được', () => {
@@ -574,6 +605,165 @@ test('ván hoàn hảo ở bàn tập được 5 sao, và thang sao không có h
   eq(rankFor(5, 2).stars, 5);
   eq(rankFor(5, 3).stars, 3);
   eq(rankFor(5, 4).stars, 2);
+});
+
+
+console.log('\n--- Kịch bản lật ly (round 8) ---');
+
+test('round 8 là kịch bản lật ly, 3 ly', () => {
+  eq(roundMode(8), MODE_FLIP);
+  eq(roundSize(8), 3);
+  eq(TOTAL_ROUNDS, 8);
+});
+
+test('round 8 không có Đặt đôi', () => {
+  eq(canDouble(8), false);
+});
+
+test('bàn khởi tạo trống, khay đủ 3 ly', () => {
+  const r = createRound(8, seededRng(5));
+  ok(r.board.every((s) => s.status === SLOT_EMPTY && s.cup === null));
+  eq(r.available.size, 3);
+  eq(r.palette, ['A', 'B', 'C']);
+});
+
+test('chiều ly có ĐÚNG 1 ô úp, không phải tung đồng xu từng ô', () => {
+  for (let seed = 1; seed <= 300; seed++) {
+    const r = createRound(8, seededRng(seed));
+    const ups = r.orientation.filter((o) => o === ORIENT_UP).length;
+    eq(ups, 1, `seed ${seed}: có ${ups} ly úp`);
+    eq(r.orientation.length, 3);
+    ok(r.orientation.every((o) => o === ORIENT_UP || o === ORIENT_DOWN));
+  }
+});
+
+test('vị trí ly úp phân bố đều qua 3 ô', () => {
+  const counts = [0, 0, 0];
+  const TRIALS = 3000;
+  for (let seed = 1; seed <= TRIALS; seed++) {
+    const r = createRound(8, seededRng(seed * 7));
+    counts[r.orientation.indexOf(ORIENT_UP)] += 1;
+  }
+  counts.forEach((c, i) => {
+    const share = c / TRIALS;
+    ok(share > 0.25 && share < 0.42, `ô ${i + 1}: ly úp rơi vào ${(share * 100).toFixed(0)}%`);
+  });
+});
+
+test('upLeft khởi tạo bằng số ly úp', () => {
+  const r = createRound(8, seededRng(9));
+  eq(r.upLeft, 1);
+});
+
+test('đúng ly + đúng chiều → ONE, board lưu cả chiều', () => {
+  const r = createRound(8, seededRng(11));
+  const res = judge(r, [{ slot: 0, cup: r.solution[0], orientation: r.orientation[0] }]);
+  eq(res.results[0].verdict, VERDICT_ONE);
+  eq(r.board[0], { status: SLOT_LOCKED, cup: r.solution[0], orientation: r.orientation[0] });
+});
+
+test('đúng ly + SAI chiều → NO, ô không khóa', () => {
+  const r = createRound(8, seededRng(11));
+  const wrong = r.orientation[0] === ORIENT_UP ? ORIENT_DOWN : ORIENT_UP;
+  const res = judge(r, [{ slot: 0, cup: r.solution[0], orientation: wrong }]);
+  eq(res.results[0].verdict, VERDICT_NO);
+  eq(r.board[0].status, SLOT_EMPTY);
+  ok(r.available.has(r.solution[0]), 'ly đúng bị gỡ khỏi khay dù đặt sai chiều');
+});
+
+test('sai ly + đúng chiều → NO', () => {
+  const r = createRound(8, seededRng(13));
+  const otherCup = r.palette.find((c) => c !== r.solution[0]);
+  const res = judge(r, [{ slot: 0, cup: otherCup, orientation: r.orientation[0] }]);
+  eq(res.results[0].verdict, VERDICT_NO);
+});
+
+test('SAI không phân biệt lý do — sai ly và sai chiều cùng một verdict', () => {
+  const r1 = createRound(8, seededRng(17));
+  const r2 = createRound(8, seededRng(17));
+  const wrongOri = r1.orientation[0] === ORIENT_UP ? ORIENT_DOWN : ORIENT_UP;
+  const otherCup = r2.palette.find((c) => c !== r2.solution[0]);
+
+  const bySideways = judge(r1, [{ slot: 0, cup: r1.solution[0], orientation: wrongOri }]);
+  const byCup = judge(r2, [{ slot: 0, cup: otherCup, orientation: r2.orientation[0] }]);
+  eq(bySideways.results[0].verdict, byCup.results[0].verdict);
+});
+
+test('upLeft giảm khi khóa được ly úp, không đổi khi khóa ly ngửa', () => {
+  const r = createRound(8, seededRng(23));
+  const upSlot = r.orientation.indexOf(ORIENT_UP);
+  const downSlot = r.orientation.indexOf(ORIENT_DOWN);
+
+  judge(r, [{ slot: downSlot, cup: r.solution[downSlot], orientation: ORIENT_DOWN }]);
+  eq(r.upLeft, 1, 'khóa ly ngửa không được đụng vào upLeft');
+
+  judge(r, [{ slot: upSlot, cup: r.solution[upSlot], orientation: ORIENT_UP }]);
+  eq(r.upLeft, 0);
+});
+
+test('khóa đủ 3 ô → round hoàn thành', () => {
+  const r = createRound(8, seededRng(29));
+  r.solution.forEach((cup, slot) => {
+    judge(r, [{ slot, cup, orientation: r.orientation[slot] }]);
+  });
+  ok(r.cleared);
+  ok(r.board.every((s) => s.status === SLOT_LOCKED));
+});
+
+test('không đặt đôi được ở round lật ly', () => {
+  const r = createRound(8, seededRng(31));
+  const res = judge(r, [
+    { slot: 0, cup: r.palette[0], orientation: ORIENT_DOWN },
+    { slot: 1, cup: r.palette[1], orientation: ORIENT_DOWN },
+  ]);
+  ok(res.rejected);
+});
+
+test('ô cuối miễn phí: khóa 2 ô thì ly và chiều ô thứ ba đều xác định', () => {
+  for (let seed = 1; seed <= 200; seed++) {
+    const r = createRound(8, seededRng(seed * 3));
+    // Khóa 2 ô đầu
+    for (const slot of [0, 1]) {
+      judge(r, [{ slot, cup: r.solution[slot], orientation: r.orientation[slot] }]);
+    }
+    // Ô cuối: chỉ còn 1 ly và chiều suy ra được từ quota upLeft
+    eq(r.available.size, 1, `seed ${seed}`);
+    const lastCup = [...r.available][0];
+    const lastOri = r.upLeft > 0 ? ORIENT_UP : ORIENT_DOWN;
+    const res = judge(r, [{ slot: 2, cup: lastCup, orientation: lastOri }]);
+    eq(res.results[0].verdict, VERDICT_ONE, `seed ${seed}: suy luận ô cuối sai`);
+  }
+});
+
+test('500 ván lật ly ngẫu nhiên: luôn giải được', () => {
+  for (let seed = 1; seed <= 500; seed++) {
+    const r = createRound(8, seededRng(seed * 19));
+    r.solution.forEach((cup, slot) => {
+      judge(r, [{ slot, cup, orientation: r.orientation[slot] }]);
+    });
+    ok(r.cleared, `seed ${seed} không giải được`);
+  }
+});
+
+test('trung bình tối ưu round 8 khớp mô phỏng', () => {
+  eq(optimalAverage(8), 6.5);
+});
+
+test('mô phỏng dò cạn: số lần đặt nằm trong biên lý thuyết', () => {
+  const TRIALS = 5000;
+  let total = 0;
+  let worst = 0;
+  for (let seed = 1; seed <= TRIALS; seed++) {
+    const r = createRound(8, seededRng(seed * 11));
+    playRound(r);
+    ok(r.cleared, `seed ${seed} không giải được`);
+    total += r.attempts;
+    worst = Math.max(worst, r.attempts);
+  }
+  const avg = total / TRIALS;
+  // Dò cạn kém hơn người chơi tối ưu (6.5) nhưng không được vượt quá xa.
+  ok(avg >= 5 && avg <= 9, `TB dò cạn ${avg.toFixed(2)} nằm ngoài khoảng hợp lý`);
+  ok(worst <= 12, `xấu nhất ${worst} > 12`);
 });
 
 

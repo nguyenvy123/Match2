@@ -333,6 +333,25 @@ Không dùng `border-radius` đều — mỗi nút có góc bo hơi khác nhau q
 
 **Bảng "Đã thử"** — danh sách các lượt đã kiểm tra, mỗi dòng gồm số lượt, dãy ly cỡ nhỏ (`.cup-chip` — ô màu viền mực, cao hơn rộng cho giống hình ly, không chữ), và kết quả `n/N`. Cuộn dọc trong khung cao tối đa `8.5rem`. Đây là thành phần **bắt buộc** của kịch bản này, không phải tiện ích thêm — xem game-design.md mục 6b.4.
 
+### 5.9b Kịch bản lật ly (round 8)
+
+**Ly úp** — vẽ bằng cách xoay `renderCup()` 180° quanh tâm (`rotate(180 w/2 h/2)`), thêm class `.cup--flipped`. Dùng chính hình ly thường chứ không vẽ hình riêng: đây là *cùng một chiếc ly*, chỉ khác chiều đặt.
+
+**Ly đang chọn trong khay** xoay theo chiều sắp đặt — phản hồi tức thì để người chơi thấy mình sắp đặt úp hay ngửa trước khi thả.
+
+**Thanh điều khiển** (`.flip-bar`) nằm dưới khay ly, gồm hai phần:
+
+```
+🙃 CÒN 1 LY ÚP        [ ⟲ ĐANG NGỬA ]
+```
+
+- **Bộ đếm** — số ly úp còn lại. Đây không phải tiện ích thêm mà là thứ khiến luật loại trừ dùng được; không có nó người chơi phải tự nhớ đã đặt mấy ly úp.
+- **Nút lật** — nền vàng khi đang úp, nền giấy (`btn--ghost`) khi đang ngửa. Vô hiệu khi chưa chọn ly.
+
+**Khi hết ly úp**, bộ đếm đổi thành "Hết ly úp — các ô còn lại đều ngửa".
+
+`aria-label` của ly nêu rõ chiều: `"Ly màu Đỏ, sắp đặt chiều úp"` / `"Ly màu Vàng, chiều ngửa"`. Không dựa riêng vào hình xoay.
+
 ### 5.10 Panel
 
 Khung vẽ tay nằm ở lớp riêng phía sau, nội dung ở lớp trên chia hai phần: vùng cuộn được và **hàng nút cố định ở đáy**. Để nút bên trong vùng cuộn thì với nội dung dài (bảng điểm cuối game) nút bị cuộn ra ngoài mép và trông như tràn khỏi viền.
@@ -548,6 +567,7 @@ Trước khi coi phần art là xong:
 - [ ] Không có gradient, không có `box-shadow` mềm
 - [ ] Amatic SC chỉ dùng cho chữ IN HOA ngắn; văn bản dài dùng font hệ thống
 - [ ] Mọi cặp màu ly phân biệt được bằng mắt (test tự động kiểm khoảng cách màu)
+- [ ] Round 8: ly úp xoay đúng 180°, bộ đếm ly úp cập nhật đúng
 - [ ] Phản hồi ĐÚNG/SAI đọc được cả khi tắt animation
 - [ ] Bàn chơi round 5 không làm body cuộn ngang trên mobile
 - [ ] Kéo thả hoạt động trên cảm ứng, không cuộn trang khi đang kéo
