@@ -213,26 +213,43 @@ Opacity tối đa `0.04`. Cao hơn là bẩn màn hình.
 
 ### 5.1 Chiếc ly
 
-Hình dáng: **cốc úp ngược có chân** — miệng hẹp ở trên, thân loe xuống, thắt lại thành cuống rồi loe ra chân đế. Nhìn từ ngang, không phối cảnh 3D.
+Hình dáng: **cốc hình thang** — miệng rộng ngửa lên trên, thành thu dần xuống, đáy hẹp đặt trên bàn. Nhìn từ ngang, không phối cảnh 3D. Không có cuống, không có chân đế.
 
 ```
-     ╭───────╮          <- miệng hẹp, cong nhẹ xuống
-    ╱         ╲
-   │           │         <- thân, fill màu loại ly
-   │     A     │         <- chữ cái, Amatic SC
-   │           │
-   ╰─┬───────┬─╯         <- nét ngang ngăn thân với cuống
-     │       │           <- cuống
-    ╱         ╲
-   ╰───────────╯         <- chân đế loe ra
+ ╭───────────╮        <- vành miệng, cong nhẹ xuống
+ ├───────────┤        <- nét vành trong
+ │           │
+  ╲         ╱         <- chỉ màu, không chữ
+   ╲       ╱
+    ╰─────╯           <- đáy hẹp, hơi vồng xuống
 ```
 
-**Vẽ thành MỘT path liền, không phải hai mảnh rời.** Hai path riêng sẽ bị lớp fill lệch (kỹ thuật ② mục 4.2) kéo ra hai hướng khác nhau, làm chiếc ly trông như bị đứt ngang. Nét ngăn thân–cuống là path phụ, vẽ mảnh hơn (`2.4px` so với `4px` của viền ngoài).
+**Ly thật và chỗ trống dùng chung hình này** — xem mục 5.1b. Đó cũng là lý do bỏ cuống và chân đế: hình càng đơn giản thì càng dễ nhận ra hai thứ là cùng một loại cốc.
+
+**Vẽ thành MỘT path liền.** Nét vành miệng là path phụ, vẽ mảnh hơn (`2.4px` so với `4px` của viền ngoài).
 
 **Yêu cầu:**
-- Chữ cái A–G in trên thân, bắt buộc (khả năng tiếp cận — không chỉ dựa vào màu)
+- **Không in chữ cái lên ly** — người chơi phân biệt hoàn toàn bằng màu. Tên màu nằm trong `aria-label` cho trình đọc màn hình.
+
+> **Đánh đổi đã biết:** bỏ chữ cái làm mất cơ chế hỗ trợ người mù màu. Cặp Đỏ `#EE5742` và Xanh lá `#7FBF6A` gần như trùng nhau với người mù màu đỏ-lục (khoảng 8% nam giới). Có test tự động (`game.test.js`) đảm bảo mọi cặp màu cách nhau ≥100 đơn vị trong không gian màu có trọng số, nhưng đó chỉ là ngưỡng cho mắt bình thường. Nếu sau này muốn khôi phục khả năng tiếp cận: thêm hoa văn (chấm/sọc/lưới) lên thân ly thay vì chữ cái.
 - Màu chữ: đen `#000000` cho mọi ly, **trừ** ly B xanh dương đậm dùng trắng `#FFFFFF` (xem mục 2.4)
 - Kích thước: `88 × 110` đơn vị SVG, hiển thị `clamp(64px, 9vw, 96px)`
+
+### 5.1b Chỗ trống chờ đặt ly (ô chưa có ly)
+
+Ô chưa có ly hiển thị **cùng hình cốc, cùng chiều ngửa** với ly thật — chỉ khác: nét đứt xám nhạt, không tô màu, không chữ cái.
+
+```
+ ╭ ─ ─ ─ ─ ─ ╮        <- vành miệng, nét đứt
+ ├ ─ ─ ─ ─ ─ ┤
+ │           │
+  ╲         ╱          <- không màu, không chữ
+   ╰ ─ ─ ─ ╯
+```
+
+**Phải cùng chiều với ly trong khay.** Vẽ ngược chiều (úp xuống) tuy đúng nghĩa "quản trò đã úp ly kín", nhưng người chơi nhìn vào thấy hai hình ngược nhau và không nhận ra chúng là cùng một loại cốc. Chỗ trống ngửa đọc ra ngay là "chỗ để đặt một chiếc ly vào".
+
+Dùng chính `handCup()` trong `doodle.js`, chỉ đổi cách tô ở CSS (`.cup--hidden`).
 
 ### 5.2 Ô trên bàn
 
@@ -314,7 +331,7 @@ Không dùng `border-radius` đều — mỗi nút có góc bo hơi khác nhau q
 ╚═══════════════════════╝
 ```
 
-**Bảng "Đã thử"** — danh sách các lượt đã kiểm tra, mỗi dòng gồm số lượt, dãy ly cỡ nhỏ (`.cup-chip` — ô vuông màu có chữ cái, viền mực), và kết quả `n/N`. Cuộn dọc trong khung cao tối đa `8.5rem`. Đây là thành phần **bắt buộc** của kịch bản này, không phải tiện ích thêm — xem game-design.md mục 6b.4.
+**Bảng "Đã thử"** — danh sách các lượt đã kiểm tra, mỗi dòng gồm số lượt, dãy ly cỡ nhỏ (`.cup-chip` — ô màu viền mực, cao hơn rộng cho giống hình ly, không chữ), và kết quả `n/N`. Cuộn dọc trong khung cao tối đa `8.5rem`. Đây là thành phần **bắt buộc** của kịch bản này, không phải tiện ích thêm — xem game-design.md mục 6b.4.
 
 ### 5.10 Panel
 
@@ -441,22 +458,69 @@ Khi tắt motion, phản hồi ĐÚNG/SAI vẫn phải **rõ ràng bằng màu +
 
 ### 7.2 Cấu trúc trang
 
+Kịch bản **đặt ly** (round 1–4) dùng bố cục **hai hàng**: ly người chơi đặt nằm trên mặt bàn, ly quản trò giấu nằm dưới. Mỗi vị trí là một cặp dọc để đối chiếu trực tiếp.
+
 ```
-┌────────────────────────────────────────────┐
-│  MATCH 2      ROUND 3/5      LẦN ĐẶT: 7    │  <- thanh trạng thái
-├────────────────────────────────────────────┤
-│                                            │
-│         [ BÀN CHƠI — các ô ]               │  <- vùng chính, thoáng nhất
-│                                            │
-│         ╔══════════════╗                   │
-│         ║    "SAI"      ║                   │  <- bảng phán xử, nổi
-│         ╚══════════════╝                   │
-│                                            │
-├────────────────────────────────────────────┤
-│  BỘ LY DỰ PHÒNG        [⚡ ĐẶT ĐÔI: BẬT]   │  <- khay dưới
-│   🔴  🔵  🟡  🟢  🟣                        │
-└────────────────────────────────────────────┘
+┌────────────────────────────────────────────────┐
+│  MATCH 2   Lần đặt: 7   [CHƠI LẠI VÁN]  [⚡]   │
+├────────────────────────────────────────────────┤
+│   ┌────┐   ┌────┐   ┌────┐   ┌────┐            │
+│   │ 🟡 │   │ +  │   │ 🔴 │   │ +  │  <- bạn đặt│
+│   └────┘   └────┘   └────┘   └────┘            │
+│ ══════════════════════════════════════  <- BÀN │
+│   ┌────┐   ┌────┐   ┌────┐   ┌────┐            │
+│   │ ╌╌ │   │ ╌╌ │   │ ╌╌ │   │ ╌╌ │  <- ly ẩn │
+│   └────┘   └────┘   └────┘   └────┘            │
+│   Vị trí 1  Vị trí 2  Vị trí 3  Vị trí 4       │
+│                                                │
+│        ╔═════════════╗                         │
+│        ║   "ĐÚNG"    ║                         │
+│        ╚═════════════╝                         │
+├────────────────────────────────────────────────┤
+│  BỘ LY DỰ PHÒNG    ⚡ ĐẶT ĐÔI — BẮT BUỘC 2 LY  │
+│    🔴   🔵   🟡   🟢                            │
+└────────────────────────────────────────────────┘
 ```
+
+Kịch bản **hoán đổi** (round 5–7) dùng **cùng bố cục hai hàng**: ly đang xếp nằm trên mặt bàn, ô ly ẩn của quản trò nằm dưới.
+
+Khác biệt so với kịch bản đặt ly: phản hồi ở đây chỉ là con số `n/N`, **không nói ô nào đúng** — nên hàng dưới không lật từng ly được. Chỉ lật hết một lượt khi round hoàn thành, lúc đó mọi ô đều đúng nên không lộ thông tin gì thêm.
+
+#### Mặt bàn
+
+Dải ngang có độ dày thật (`handTableTop()` trong `doodle.js`): mép trên hơi vồng, mép dưới cong ngược lại một chút, để trông như tấm ván nhìn hơi chếch chứ không phải thanh chữ nhật phẳng. Nền `--paper-alt`, viền mực `4.5px`.
+
+Chiều rộng bám theo `.table` chứ không phải khung cuộn — khi bàn rộng hơn màn hình (round 4 trên mobile), mặt bàn kéo dài hết bàn thay vì bị cắt ngang ở mép khung nhìn.
+
+#### Ô trống ở hàng đặt ly
+
+Hiện dấu `+` mờ làm gợi ý "đặt ly vào đây", đậm lên và phóng to khi hover. Ẩn đi khi ô đang có ly — kể cả ly tạm lúc báo Sai.
+
+#### Ly ẩn ở hàng dưới
+
+Không tương tác được (`pointer-events: none`).
+
+**Khi đặt đúng, ly ẩn lật lên thành ly thật cùng màu** — hai hàng khớp nhau, xác nhận trực quan rằng đó đúng là chiếc ly quản trò giấu ở vị trí này. Khung ô cũng sáng dần sang xanh cùng nhịp.
+
+**Đặt sai thì ly hàng dưới giữ nguyên nét đứt** — không có gì để lật, vì đó không phải ly đúng.
+
+**Có độ trễ trước khi lật**, không lật ngay khi phán xử hiện ra:
+
+```
+0ms     Đặt ly → phán xử "ĐÚNG" hiện ra
+620ms   Bắt đầu lật ly ở hàng dưới (REVEAL_DELAY_MS)
+1320ms  Animation lật hoàn tất (REVEAL_ANIM_MS = 700ms)
+```
+
+Độ trễ này bắt buộc: lật ngay lập tức làm mất hẳn cảm giác "chờ quản trò xác nhận rồi mới lật ra". Khi đặt đôi cùng đúng cả hai, hai ly lật **so le nhau** (`REVEAL_STAGGER_MS = 260ms`) chứ không bật lên đồng thời.
+
+**Không khoá tương tác trong lúc chờ lật** — người chơi đặt ly tiếp được ngay sau khi đọc phán xử (~380ms), animation lật chạy nền song song. Chỉ khi round vừa hoàn thành mới đợi lật xong hết rồi mới mở màn chuyển round, để không cắt animation giữa chừng.
+
+**Lưu ý khi viết test tự động.** Độ trễ lật ly làm thời điểm mở màn chuyển round lùi lại: overlay chỉ hiện sau `max(wait, REVEAL_DELAY_MS + REVEAL_ANIM_MS)` = **1320ms** tính từ lượt cuối, không phải ngay khi phán xử vừa hiện. Test chờ overlay phải để timeout rộng (≥12s cho round nhiều lượt), nếu không sẽ gặp lỗi timeout ngắt quãng — pass hầu hết lần chạy nhưng thỉnh thoảng fail khi round cần nhiều lượt hơn bình thường.
+
+**Không vẽ lại bảng phán xử khi không có gì đổi.** Trước đây, hàm mở khoá tương tác sau mỗi lượt gọi `renderAll()` — hàm này vẽ lại toàn bộ giao diện kể cả bảng "ĐÚNG"/"SAI" đang hiện, dù nội dung không đổi. `replaceChildren()` huỷ DOM cũ và tạo DOM mới, nên animation `verdict-pop` chạy lại từ đầu — bảng chữ trông như bị "reload" giữa lúc người chơi đang đọc. Sửa bằng cách chỉ vẽ lại phần cần cập nhật (bàn, khay dự phòng) sau mỗi lượt, không đụng tới bảng phán xử.
+
+Hiệu ứng lật: `rotateX(-90deg) → 0` với `transform-origin: center bottom`, như đang nhấc ly lên cho xem. Hiện dần từ mờ, nảy nhẹ quá đà ở giữa chừng cho khớp tinh thần vẽ tay. Thời lượng animation (`700ms` trong CSS) phải khớp `REVEAL_ANIM_MS` trong `ui.js` — đổi một bên thì phải đổi bên kia.
 
 ### 7.3 Responsive
 
@@ -477,10 +541,13 @@ Trước khi coi phần art là xong:
 
 - [ ] Không có `border` CSS nào cho hình dạng chính — tất cả dùng SVG path lệch tay
 - [ ] Mỗi ly có ít nhất 3 biến thể path khác nhau
+- [ ] Chỗ trống ở ô chưa có ly cùng hình và cùng chiều với ly trong khay
+- [ ] Bố cục hai hàng đúng thứ tự: đặt ly → mặt bàn → ly ẩn
+- [ ] Mặt bàn không bị cắt ngang khi bàn cuộn trên mobile
 - [ ] Fill lệch khỏi viền 1–3px ở mọi thành phần chính
 - [ ] Không có gradient, không có `box-shadow` mềm
 - [ ] Amatic SC chỉ dùng cho chữ IN HOA ngắn; văn bản dài dùng font hệ thống
-- [ ] Chữ cái A–G hiện rõ trên mọi ly (test bằng ảnh grayscale)
+- [ ] Mọi cặp màu ly phân biệt được bằng mắt (test tự động kiểm khoảng cách màu)
 - [ ] Phản hồi ĐÚNG/SAI đọc được cả khi tắt animation
 - [ ] Bàn chơi round 5 không làm body cuộn ngang trên mobile
 - [ ] Kéo thả hoạt động trên cảm ứng, không cuộn trang khi đang kéo
@@ -523,4 +590,4 @@ Bảng màu ly ở mục 3 của tài liệu thiết kế cần đồng bộ the
 | 4 | + 🟠 cam | + Cam `#F2934A` |
 | 5 | + 🟤 nâu | + Xanh lá `#7FBF6A` |
 
-Mã chữ cái A–G giữ nguyên, chỉ đổi màu và tên.
+Mã `A`–`G` vẫn dùng nội bộ trong code làm định danh ly, nhưng **không hiển thị** lên giao diện.

@@ -432,31 +432,39 @@ Hướng mở nếu sau này muốn hạ ngưỡng (chưa đưa vào v1): chế 
 
 ## 10. Giao diện & trải nghiệm
 
-### 10.1 Bố cục màn hình (ví dụ round 3, 5 ô)
+### 10.1 Bố cục màn hình
+
+Kịch bản **đặt ly** dùng bố cục **hai hàng**, ngăn bởi một mặt bàn:
+
+- **Hàng trên** — ly người chơi đặt, nằm *trên* mặt bàn. Ô trống hiện dấu `+`.
+- **Hàng dưới** — ly quản trò đang giấu, luôn hiển thị dạng nét đứt không màu.
+
+Mỗi vị trí là một **cặp dọc**, người chơi đối chiếu trực tiếp "mình đoán gì" với "chỗ cần đoán".
 
 ```
-┌────────────────────────────────────────────────────────┐
-│  MATCH 2     ROUND 3 / 5    Lần đặt: 7   [CHƠI LẠI]    │
-├────────────────────────────────────────────────────────┤
-│                                                        │
-│   ┌────┐   ┌────┐   ┌────┐   ┌────┐   ┌────┐           │
-│   │ 🟡 │   │ ?? │   │ 🔴 │   │ ?? │   │ ?? │           │
-│   │ ╱╱ │   │    │   │ ╱╱ │   │    │   │    │           │
-│   └────┘   └────┘   └────┘   └────┘   └────┘           │
-│     1        2        3        4        5              │
-│                                                        │
-│        ╔════════════════════════════════╗              │
-│        ║  Ô 2 → "SAI"    Ô 4 → "ĐÚNG" ✅  ║              │
-│        ╚════════════════════════════════╝              │
-│                                                        │
-├────────────────────────────────────────────────────────┤
-│  BỘ LY DỰ PHÒNG     ⚡ ĐẶT ĐÔI — BẮT BUỘC 2 LY MỖI LƯỢT│
-│                                                        │
-│    🔴      🔵      🟡      🟢      🟣                   │
-│     A       B       C       D       E                  │
-│   (khóa)          (khóa)                               │
-└────────────────────────────────────────────────────────┘
+   ┌────┐   ┌────┐   ┌────┐
+   │ 🟡 │   │ +  │   │ 🔴 │      <- ly bạn đặt
+   └────┘   └────┘   └────┘
+ ═════════════════════════════   <- MẶT BÀN
+   ┌────┐   ┌────┐   ┌────┐
+   │ ╌╌ │   │ ╌╌ │   │ ╌╌ │      <- ly quản trò giấu
+   └────┘   └────┘   └────┘
+   Vị trí 1 Vị trí 2 Vị trí 3
 ```
+
+**Đặt đúng thì ly ẩn ở hàng dưới lật lên thành ly thật cùng màu**, sau một nhịp chờ (không lật ngay lập tức). Khung cả hai ô sáng dần sang xanh. Người chơi thấy ngay hai hàng khớp nhau:
+
+```
+   ┌────┐   ┌────┐
+   │ 🟡 │   │ +  │      <- ly bạn đặt
+   └────┘   └────┘
+ ═══════════════════    <- MẶT BÀN
+   ┌────┐   ┌────┐
+   │ 🟡 │   │ ╌╌ │      <- vị trí 1 đã lật, khớp màu
+   └────┘   └────┘
+```
+
+Kịch bản **hoán đổi** dùng **cùng bố cục hai hàng**, nhưng hàng dưới **không lật từng ly** — phản hồi chỉ là con số `n/N` chứ không nói ô nào đúng. Hàng dưới chỉ lật hết một lượt khi giải xong cả round.
 
 ### 10.2 Thao tác
 
@@ -488,7 +496,8 @@ Màn chuyển hiển thị: lời giải vừa giải, số lần đặt, xếp 
 
 ### 10.5 Khả năng tiếp cận
 
-- Mỗi ly có **chữ cái A–G** in trên thân, không chỉ dựa vào màu → người mù màu vẫn chơi được.
+- Ly phân biệt **hoàn toàn bằng màu**, không in chữ cái. Tên màu nằm trong `aria-label` cho trình đọc màn hình.
+- **Hạn chế đã biết:** người mù màu đỏ-lục khó phân biệt ly Đỏ với ly Xanh lá. Xem art-style.md mục 5.1 cho hướng khắc phục nếu cần.
 - Khẩu lệnh hiển thị bằng **chữ**, không chỉ bằng màu sắc.
 - Điều khiển đầy đủ bằng bàn phím (mục 10.2).
 

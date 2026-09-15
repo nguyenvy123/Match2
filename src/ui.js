@@ -13,7 +13,7 @@ import {
 } from './game.js';
 
 import {
-  handRect, handCup, handStrikes, handUnderline, fillOffset, tilt,
+  handRect, handCup, handTableTop, handStrikes, handUnderline, fillOffset, tilt,
 } from './doodle.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -21,6 +21,13 @@ const CUP_BY_ID = new Map(CUPS.map((c) => [c.id, c]));
 
 /** Thời gian ly nằm trên bàn trước khi bay về khay khi bị "Sai". */
 const NO_RETURN_MS = 520;
+
+/** Chờ bao lâu sau phán xử rồi mới lật ly ẩn ở hàng dưới. */
+const REVEAL_DELAY_MS = 620;
+/** Giãn cách giữa hai lần lật khi đặt đôi cùng đúng. */
+const REVEAL_STAGGER_MS = 260;
+/** Độ dài animation lật, phải khớp với `cup-reveal` trong style.css. */
+const REVEAL_ANIM_MS = 700;
 
 // --- Tiện ích DOM ---
 
@@ -64,7 +71,7 @@ function renderCup(cupId, seed, { width = 88, height = 110 } = {}) {
     class: 'cup',
     viewBox: `0 0 ${width} ${height}`,
     role: 'img',
-    'aria-label': `Ly ${cupId} màu ${cup.name}`,
+    'aria-label': `Ly màu ${cup.name}`,
   }, [
     // Lớp màu, lệch khỏi viền
     svg('g', { transform: shift }, [
@@ -73,21 +80,15 @@ function renderCup(cupId, seed, { width = 88, height = 110 } = {}) {
     // Lớp viền, vẽ đè lên
     svg('path', { class: 'cup__outline', d: body }),
     svg('path', { class: 'cup__waist', d: waist }),
-    // Chữ cái — bắt buộc cho khả năng tiếp cận, không chỉ dựa vào màu
-    svg('text', {
-      class: 'cup__letter',
-      x: width / 2,
-      y: height * 0.42,
-      fill: cup.ink,
-      'font-size': width * 0.44,
-    }, [document.createTextNode(cupId)]),
+    // Không in chữ cái lên ly — người chơi phân biệt bằng màu. Tên màu vẫn
+    // nằm trong `aria-label` để trình đọc màn hình đọc được.
   ]);
 }
 
 /**
- * Vẽ một chiếc ly ÚP NGƯỢC — dùng cho ô còn trống, để người chơi hình dung
- * ra là quản trò đã đặt sẵn một chiếc ly úp kín ở đó, chỉ là chưa biết màu.
- * Chỉ vẽ viền (không tô màu, không chữ cái) — đúng nghĩa "chưa lật lên".
+ * Vẽ chỗ trống chờ đặt ly — dùng cho ô chưa có ly. Cùng hình và CÙNG CHIỀU
+ * với ly thật, chỉ khác: nét đứt, không tô màu, không chữ cái. Người chơi
+ * nhìn ra ngay đây là chỗ để đặt một chiếc ly vào.
  */
 function renderHiddenCup(seed, { width = 88, height = 110 } = {}) {
   const { body, waist } = handCup(width, height, seed);
@@ -96,10 +97,8 @@ function renderHiddenCup(seed, { width = 88, height = 110 } = {}) {
     viewBox: `0 0 ${width} ${height}`,
     'aria-hidden': 'true',
   }, [
-    svg('g', { transform: `rotate(180 ${width / 2} ${height / 2})` }, [
-      svg('path', { class: 'cup__outline', d: body }),
-      svg('path', { class: 'cup__waist', d: waist }),
-    ]),
+    svg('path', { class: 'cup__outline', d: body }),
+    svg('path', { class: 'cup__waist', d: waist }),
   ]);
 }
 
@@ -138,6 +137,9 @@ export function mountGame(root) {
   let seedCounter = 0;        // đổi seed để hình ly vẽ lại khác nhau mỗi round
   let panelObserver = null;   // theo dõi kích thước panel để vẽ lại khung
   let swapPick = null;        // ô đầu đã chọn để hoán đổi (kịch bản round 5–7)
+  // Các ô vừa chốt nhưng chưa được phép lật ly ẩn ở hàng dưới. Ly chỉ lật sau
+  // khi người chơi đã kịp đọc phán xử — nếu lật ngay thì mất hẳn nhịp chờ.
+  let pendingReveal = new Set();
 
   const dom = buildShell();
   root.append(dom.app, dom.overlay);
@@ -268,21 +270,24 @@ export function mountGame(root) {
     const round = game.active;
     if (round.mode === MODE_SWAP) { renderSwapTable(); return; }
 
-    dom.table.replaceChildren(...round.board.map((slot, i) => {
+    // Hai hàng: ly người chơi đặt nằm TRÊN mặt bàn, ly quản trò giấu nằm dưới.
+    // Mỗi vị trí là một cặp dọc để người chơi đối chiếu trực tiếp.
+    const topRow = el('div', { class: 'table__row table__row--play' });
+    const bottomRow = el('div', { class: 'table__row table__row--hidden' });
+
+    round.board.forEach((slot, i) => {
       const locked = slot.status === SLOT_LOCKED;
       const isArmed = pending?.slot === i;
       const seed = seedCounter * 100 + i * 7 + 13;
 
-      // Ly đang chờ ghép cặp hiện ngay trên ô, không chỉ là chip chữ ở dưới —
-      // người chơi cần thấy rõ mình đã đặt gì ở đâu khi chọn ly thứ hai.
+      // Ly đang chờ ghép cặp hiện ngay trên ô — người chơi cần thấy rõ mình
+      // đã đặt gì ở đâu khi chọn ly thứ hai.
       const heldCup = isArmed ? pending.cup : null;
       const shownCup = locked ? slot.cup : heldCup;
 
       const frame = el('div', { class: 'slot__frame' }, [
         renderFrame('slot__outline', 100, 132, seed, { wobble: 2.4, inset: 4 }),
-        shownCup
-          ? renderCup(shownCup, seed + 500)
-          : renderHiddenCup(seed + 500),
+        shownCup ? renderCup(shownCup, seed + 500) : null,
         locked
           ? svg('svg', { class: 'slot__ticks', viewBox: '0 0 30 22', 'aria-hidden': 'true' },
               handStrikes(30, 22, seed + 77, 2).map((d) => svg('path', { d })))
@@ -299,7 +304,7 @@ export function mountGame(root) {
       // Cố ý KHÔNG hiển thị các ly đã thử và trượt ở ô này — người chơi phải
       // tự nhớ. Trí nhớ chính là kỹ năng cốt lõi của game, xem game-design.md
       // mục 9.3.
-      return el('button', {
+      topRow.append(el('button', {
         class: 'slot',
         type: 'button',
         'data-status': slot.status,
@@ -310,11 +315,51 @@ export function mountGame(root) {
         onclick: () => onSlotClick(i),
         // Ly đang giữ trên ô kéo được sang ô khác nếu người chơi đổi ý.
         onpointerdown: heldCup ? (e) => onHeldPointerDown(e, i, heldCup) : null,
+      }, [frame]));
+
+      // Hàng dưới chỉ để nhìn, không bấm được — đây là ly quản trò đang giấu.
+      // Đặt đúng thì ly ẩn lật lên thành ly thật cùng màu — xác nhận trực quan
+      // rằng đó đúng là chiếc ly quản trò đang giấu ở vị trí này. Nhưng chỉ lật
+      // SAU khi người chơi đã đọc xong phán xử (xem `pendingReveal`).
+      const readyToReveal = locked && !pendingReveal.has(i);
+      const revealed = readyToReveal
+        ? renderCup(slot.cup, seed + 640)
+        : renderHiddenCup(seed + 500);
+      if (readyToReveal) revealed.classList.add('is-revealing');
+
+      bottomRow.append(el('div', {
+        class: 'hidden-slot',
+        'data-solved': String(readyToReveal),
+        'aria-hidden': 'true',
       }, [
-        frame,
+        el('div', { class: 'hidden-slot__frame' }, [
+          renderFrame('slot__outline', 100, 132, seed + 40, { wobble: 2.4, inset: 4 }),
+          revealed,
+        ]),
         el('span', { class: 'slot__index', text: `Vị trí ${i + 1}` }),
-      ]);
-    }));
+      ]));
+    });
+
+    dom.table.replaceChildren(
+      topRow,
+      renderTableSurface(),
+      bottomRow,
+    );
+  }
+
+  /** Mặt bàn — dải có độ dày, ngăn giữa hàng đặt ly và hàng ly ẩn. */
+  function renderTableSurface() {
+    const w = 600;
+    const h = 20;
+    const rng = seedCounter * 3 + 17;
+    return svg('svg', {
+      class: 'table__surface',
+      viewBox: `0 0 ${w} ${h}`,
+      preserveAspectRatio: 'none',
+      'aria-hidden': 'true',
+    }, [
+      svg('path', { d: handTableTop(w, h, rng) }),
+    ]);
   }
 
   /**
@@ -323,7 +368,16 @@ export function mountGame(root) {
    */
   function renderSwapTable() {
     const round = game.active;
-    dom.table.replaceChildren(...round.board.map((slot, i) => {
+    // Cùng bố cục hai hàng như kịch bản đặt ly: ly đang xếp nằm trên mặt bàn,
+    // ô ly ẩn của quản trò nằm dưới.
+    //
+    // Khác biệt: phản hồi ở đây chỉ là con số `n/N`, KHÔNG nói ô nào đúng —
+    // nên hàng dưới không lật từng ly được. Chỉ lật hết một lượt khi round
+    // hoàn thành, lúc đó mọi ô đều đúng nên không lộ thông tin gì thêm.
+    const topRow = el('div', { class: 'table__row table__row--play' });
+    const bottomRow = el('div', { class: 'table__row table__row--hidden' });
+
+    topRow.append(...round.board.map((slot, i) => {
       const locked = slot.status === SLOT_LOCKED;
       const picked = swapPick === i;
       const seed = seedCounter * 100 + i * 7 + 13;
@@ -351,11 +405,31 @@ export function mountGame(root) {
         'aria-pressed': String(picked),
         onclick: () => onSwapSlotClick(i),
         onpointerdown: locked ? null : (e) => onSwapPointerDown(e, i, slot.cup),
-      }, [
-        frame,
-        el('span', { class: 'slot__index', text: `Vị trí ${i + 1}` }),
-      ]);
+      }, [frame]);
     }));
+
+    round.board.forEach((slot, i) => {
+      const locked = slot.status === SLOT_LOCKED;
+      const seed = seedCounter * 100 + i * 7 + 13;
+      const revealed = locked
+        ? renderCup(slot.cup, seed + 640)
+        : renderHiddenCup(seed + 500);
+      if (locked) revealed.classList.add('is-revealing');
+
+      bottomRow.append(el('div', {
+        class: 'hidden-slot',
+        'data-solved': String(locked),
+        'aria-hidden': 'true',
+      }, [
+        el('div', { class: 'hidden-slot__frame' }, [
+          renderFrame('slot__outline', 100, 132, seed + 40, { wobble: 2.4, inset: 4 }),
+          revealed,
+        ]),
+        el('span', { class: 'slot__index', text: `Vị trí ${i + 1}` }),
+      ]));
+    });
+
+    dom.table.replaceChildren(topRow, renderTableSurface(), bottomRow);
   }
 
   /**
@@ -404,14 +478,14 @@ export function mountGame(root) {
     dom.swapBar.replaceChildren(...parts);
   }
 
-  /** Ly cỡ nhỏ dùng trong bảng lịch sử. */
+  /** Ly cỡ nhỏ dùng trong bảng lịch sử — chỉ ô màu, không chữ. */
   function renderCupChip(cupId) {
     const cup = CUP_BY_ID.get(cupId);
     return el('span', {
       class: 'cup-chip',
-      style: `background:${cup.hex};color:${cup.ink}`,
-      text: cupId,
+      style: `background:${cup.hex}`,
       title: cup.name,
+      'aria-label': cup.name,
     });
   }
 
@@ -477,8 +551,14 @@ export function mountGame(root) {
 
     window.setTimeout(() => {
       busy = false;
-      if (res.cleared) showRoundCleared();
-      else renderAll();
+      if (res.cleared) {
+        showRoundCleared();
+      } else {
+        // Không gọi renderAll(): nó vẽ lại bảng "n/N" dù không đổi, làm
+        // animation chạy lại và trông như giật/reload ngay sau khi vừa hiện.
+        renderTable();
+        renderSwapControls();
+      }
     }, res.cleared ? 520 : 360);
   }
 
@@ -506,7 +586,7 @@ export function mountGame(root) {
         'data-held': String(held),
         'data-selected': String(selectedCup === cupId),
         disabled: used || busy,
-        'aria-label': `Ly ${cupId} màu ${CUP_BY_ID.get(cupId).name}${
+        'aria-label': `Ly màu ${CUP_BY_ID.get(cupId).name}${
           held ? ', đang giữ trên bàn' : used ? ', đã chốt trên bàn' : ''}`,
         'aria-pressed': String(selectedCup === cupId),
         onclick: () => onCupClick(cupId),
@@ -819,6 +899,13 @@ export function mountGame(root) {
     verdicts = outcome.results;
     busy = true;
 
+    // Các ô vừa đặt đúng: giữ ly ẩn ở hàng dưới chưa lật, để người chơi kịp
+    // đọc phán xử trước. Ô đặt sai không vào đây — ly dưới giữ nguyên nét đứt.
+    const justSolved = outcome.results
+      .filter((r) => r.verdict === VERDICT_ONE)
+      .map((r) => r.slot);
+    justSolved.forEach((slot) => pendingReveal.add(slot));
+
     // Ly "NO" nằm lại trên bàn một nhịp rồi mới rung và bay về khay,
     // để người chơi kịp thấy mình vừa đặt gì ở đâu.
     renderTransient(placements, outcome.results);
@@ -830,14 +917,58 @@ export function mountGame(root) {
     const anyMiss = outcome.results.some((r) => r.verdict === VERDICT_NO);
     const wait = anyMiss ? NO_RETURN_MS : 380;
 
+    // Lật ly ẩn sau khi phán xử đã hiện đủ lâu để đọc. Lật lần lượt từng ô
+    // khi đặt đôi, để hai ly không bật lên cùng lúc.
+    justSolved.forEach((slot, order) => {
+      window.setTimeout(() => {
+        pendingReveal.delete(slot);
+        revealHiddenCup(slot);
+      }, REVEAL_DELAY_MS + order * REVEAL_STAGGER_MS);
+    });
+
+    // Không khoá tương tác suốt animation lật: ly lật ở hàng dưới chỉ để xem,
+    // không cản người chơi đặt ly tiếp. Chỉ khi round đã xong mới chờ lật hết
+    // rồi mở màn chuyển round.
+    const lastReveal = justSolved.length
+      ? REVEAL_DELAY_MS + (justSolved.length - 1) * REVEAL_STAGGER_MS + REVEAL_ANIM_MS
+      : 0;
+
     window.setTimeout(() => {
       busy = false;
-      if (outcome.cleared) {
-        showRoundCleared();
-      } else {
-        renderAll();
+      // Không gọi renderAll() ở đây: nó vẽ lại cả bảng phán xử dù verdicts
+      // không đổi, làm animation "verdict-pop" chạy lại và trông như màn hình
+      // bị giật/reload ngay sau khi vừa hiện phán xử. Chỉ vẽ lại phần cần
+      // cập nhật — nút bấm quay lại trạng thái enabled (busy=false).
+      if (!outcome.cleared) {
+        renderTable();
+        renderTray();
+        renderPairing();
       }
     }, wait);
+
+    if (outcome.cleared) {
+      window.setTimeout(showRoundCleared, Math.max(wait, lastReveal));
+    }
+  }
+
+  /**
+   * Lật ly ẩn ở một ô hàng dưới, thay tại chỗ thay vì vẽ lại cả bàn — vẽ lại
+   * sẽ làm mất animation đang chạy ở các ô khác.
+   */
+  function revealHiddenCup(slotIndex) {
+    const round = game.active;
+    const slot = round.board[slotIndex];
+    if (!slot || slot.status !== SLOT_LOCKED) return;
+
+    const node = dom.table.querySelectorAll('.hidden-slot')[slotIndex];
+    if (!node) return;
+
+    const seed = seedCounter * 100 + slotIndex * 7 + 13;
+    const cupNode = renderCup(slot.cup, seed + 640);
+    cupNode.classList.add('is-revealing');
+
+    node.dataset.solved = 'true';
+    node.querySelector('.cup')?.replaceWith(cupNode);
   }
 
   /**
@@ -856,10 +987,11 @@ export function mountGame(root) {
         return;
       }
 
-      const ghost = frame.querySelector('.cup--hidden');
+      // Ô ở hàng đặt ly giờ trống hẳn khi chưa có ly — chèn thẳng ly sai vào
+      // frame để người chơi kịp thấy mình vừa đặt gì ở đâu trước khi nó bay đi.
       const cupNode = renderCup(cup, seedCounter * 100 + slot * 7 + 13 + 500);
       cupNode.classList.add('slot__cup', 'is-shaking');
-      ghost?.replaceWith(cupNode);
+      frame.append(cupNode);
     });
   }
 
@@ -981,7 +1113,7 @@ export function mountGame(root) {
       el('p', { html: '<strong>Game không ghi lại những lần đoán sai.</strong> Bạn đã thử ly nào ở ô nào — phải tự nhớ lấy.' }),
       el('p', { html: '<strong>Round 1–4:</strong> bàn rộng dần từ 3 lên 6 ô. Từ round 3 chuyển sang <strong>⚡ Đặt đôi</strong> — mỗi lượt <em>bắt buộc</em> đặt 2 ly vào 2 ô, chọn cả hai trước khi biết kết quả nào.' }),
       el('p', { html: '<strong>Round 5–7:</strong> đổi kịch bản. Bàn có sẵn ly bị xáo trộn, bạn <strong>đổi chỗ</strong> chúng rồi bấm Kiểm tra. Quản trò chỉ nói <strong>số ly đúng vị trí</strong>, không nói ly nào. Round 5 chỉ 3 ly — bàn tập để làm quen luật mới.' }),
-      el('p', { class: 'hint', text: 'Bàn phím: A–F chọn ly · 1–6 chọn ô · Esc huỷ · R chơi lại ván' }),
+      el('p', { class: 'hint', text: 'Bàn phím: A–F chọn ly theo thứ tự trong khay · 1–6 chọn ô · Esc huỷ · R chơi lại ván' }),
     ], [
       handButton('Bắt đầu', () => closePanel(), { seed: 12 }),
     ]);
@@ -1276,9 +1408,11 @@ export function mountGame(root) {
       return;
     }
 
+    // Phím A–F chọn ly theo THỨ TỰ trong khay (A = ly đầu tiên), không phải
+    // theo chữ in trên ly — ly giờ không in chữ nữa.
     if (/^[A-F]$/.test(key)) {
       if (game.active.available.has(key)) onCupClick(key);
-      else flashHint(`Ly ${key} đã khóa trên bàn`);
+      else flashHint(`Ly ${CUP_BY_ID.get(key)?.name ?? key} đã chốt trên bàn`);
       return;
     }
 

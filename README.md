@@ -131,4 +131,6 @@ Round 5–7 (hoán đổi): tối ưu 2.9 / 4.7 / 5.7 lượt với chiến thu�
 
 **Art style hand-drawn.** Không dùng `border` CSS cho hình dạng chính — mọi khung, ly, nét đánh dấu đều là SVG path có toạ độ lệch tay, mỗi cái một seed riêng nên không cái nào giống cái nào. Lớp màu tô lệch khỏi viền 1–3px. Chi tiết ở [docs/art-style.md](docs/art-style.md).
 
-Bảng màu trích trực tiếp từ ảnh tham chiếu bằng phân tích pixel. Mọi ly đều có chữ cái A–G in trên thân và đạt tương phản WCAG AA, nên người mù màu vẫn chơi được.
+Bảng màu trích trực tiếp từ ảnh tham chiếu bằng phân tích pixel. Ly phân biệt hoàn toàn bằng màu — không in chữ cái. Có test tự động đảm bảo mọi cặp màu cách nhau đủ xa để phân biệt bằng mắt.
+
+**Hạn chế:** người mù màu đỏ-lục sẽ khó phân biệt ly Đỏ với ly Xanh lá. Nếu cần khắc phục, hướng đi là thêm hoa văn lên thân ly thay vì chữ cái.

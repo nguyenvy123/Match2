@@ -58,62 +58,74 @@ export function handRect(w, h, seed, { wobble = 2.2, inset = 3 } = {}) {
 }
 
 /**
- * Chiếc ly nhìn ngang — miệng rộng dưới, thân thon lên trên, có vành đáy.
+ * Chiếc ly nhìn ngang — cốc hình thang, miệng rộng ngửa lên, đáy hẹp đặt bàn.
  * Xem art-style.md mục 5.1.
  *
- * Vẽ thành MỘT path liền (thân + chân nối nhau) chứ không phải hai mảnh rời.
- * Hai path riêng sẽ bị lớp fill lệch kéo ra hai hướng khác nhau, làm chiếc ly
- * trông như bị đứt ngang.
+ * Vẽ thành MỘT path liền. Chia thành nhiều path rời sẽ bị lớp fill lệch kéo ra
+ * các hướng khác nhau, làm chiếc ly trông như bị đứt ngang.
+ *
+ * Ô trống cũng dùng chính hình này (nét đứt, không tô màu) — xem
+ * `renderHiddenCup` trong ui.js.
  */
 export function handCup(w, h, seed, { wobble = 1.8 } = {}) {
   const rng = rngFrom(seed);
   const j = () => jitter(rng, wobble);
 
-  const topY = h * 0.09;
-  const topInset = w * 0.24;
-  const bodyBottomY = h * 0.72;
-  const sideInset = w * 0.09;
+  // Cốc hình thang: miệng rộng ngửa lên, đáy hẹp đặt xuống bàn. Đây chính là
+  // hình ly ẩn lật ngược lại — hai kiểu phải khớp nhau, vì chúng là cùng một
+  // chiếc ly ở hai trạng thái úp và ngửa.
+  const rimY = h * 0.13;
+  const rimInset = w * 0.07;
+  const baseY = h * 0.87;
+  const baseInset = w * 0.26;
 
-  // Thân: miệng trên hẹp, loe dần xuống dưới.
-  const tl = { x: topInset + j(), y: topY + j() };
-  const tr = { x: w - topInset + j(), y: topY + j() };
-  const br = { x: w - sideInset + j(), y: bodyBottomY + j() };
-  const bl = { x: sideInset + j(), y: bodyBottomY + j() };
-
-  // Cuống nối thân với chân đế.
-  const stemTop = bodyBottomY;
-  const stemBottom = h * 0.82;
-  const stemInset = w * 0.34;
-  const sr = { x: w - stemInset + j(), y: stemBottom + j() };
-  const sl = { x: stemInset + j(), y: stemBottom + j() };
-
-  // Chân đế loe ra.
-  const footY = h * 0.93;
-  const footInset = w * 0.17;
-  const fr = { x: w - footInset + j(), y: footY + j() };
-  const fl = { x: footInset + j(), y: footY + j() };
+  const tl = { x: rimInset + j(), y: rimY + j() };
+  const tr = { x: w - rimInset + j(), y: rimY + j() };
+  const br = { x: w - baseInset + j(), y: baseY + j() };
+  const bl = { x: baseInset + j(), y: baseY + j() };
 
   const body = [
     `M ${tl.x.toFixed(1)},${tl.y.toFixed(1)}`,
-    // miệng ly cong nhẹ xuống, thấy được vành
-    `Q ${(w / 2).toFixed(1)},${(topY - 3 + j()).toFixed(1)} ${tr.x.toFixed(1)},${tr.y.toFixed(1)}`,
-    wobblyLine(tr.x, tr.y, br.x, br.y, rng, 2.4),   // sườn phải
-    wobblyLine(br.x, br.y, sr.x, sr.y, rng, 1.2),   // thắt vào cuống
-    wobblyLine(sr.x, sr.y, fr.x, fr.y, rng, 1.2),   // loe ra chân
-    `Q ${(w / 2).toFixed(1)},${(footY + 3 + j()).toFixed(1)} ${fl.x.toFixed(1)},${fl.y.toFixed(1)}`,
-    wobblyLine(fl.x, fl.y, sl.x, sl.y, rng, 1.2),
-    wobblyLine(sl.x, sl.y, bl.x, bl.y, rng, 1.2),
+    // vành miệng cong nhẹ xuống — nhìn nghiêng thấy lòng cốc
+    `Q ${(w / 2).toFixed(1)},${(rimY + 4 + j()).toFixed(1)} ${tr.x.toFixed(1)},${tr.y.toFixed(1)}`,
+    wobblyLine(tr.x, tr.y, br.x, br.y, rng, 2.4),   // sườn phải thu vào
+    // đáy cốc hơi vồng xuống
+    `Q ${(w / 2).toFixed(1)},${(baseY + 3 + j()).toFixed(1)} ${bl.x.toFixed(1)},${bl.y.toFixed(1)}`,
     wobblyLine(bl.x, bl.y, tl.x, tl.y, rng, 2.4),   // sườn trái
     'Z',
   ].join(' ');
 
-  // Nét ngang ngăn thân với cuống — chi tiết trang trí, vẽ bằng nét mảnh hơn.
+  // Nét vành miệng, vẽ ngay dưới mép trên — cùng chi tiết với ly úp, chỉ đổi
+  // đầu. Đó là thứ giúp người chơi nhận ra hai hình là cùng một chiếc ly.
   const waist = [
-    `M ${(bl.x + 1).toFixed(1)},${(bodyBottomY + j()).toFixed(1)}`,
-    wobblyLine(bl.x + 1, bodyBottomY, br.x - 1, bodyBottomY, rng, 1.1),
+    `M ${(tl.x + 2).toFixed(1)},${(rimY + h * 0.07 + j()).toFixed(1)}`,
+    wobblyLine(tl.x + 2, rimY + h * 0.07, tr.x - 2, rimY + h * 0.07, rng, 1.2),
   ].join(' ');
 
   return { body, waist };
+}
+
+/**
+ * Mặt bàn — dải ngang có độ dày, ngăn giữa hàng đặt ly và hàng ly ẩn.
+ * Mép trên hơi vồng, mép dưới cong ngược lại một chút để trông như tấm ván
+ * nhìn hơi chếch, không phải một thanh chữ nhật phẳng.
+ */
+export function handTableTop(w, h, seed) {
+  const rng = rngFrom(seed);
+  const j = (a = 1.6) => jitter(rng, a);
+
+  const topY = h * 0.12;
+  const botY = h * 0.9;
+
+  return [
+    `M ${(2 + j()).toFixed(1)},${(topY + j()).toFixed(1)}`,
+    `Q ${(w * 0.3).toFixed(1)},${(topY - 3 + j()).toFixed(1)} ${(w * 0.62).toFixed(1)},${(topY + j()).toFixed(1)}`,
+    `T ${(w - 2 + j()).toFixed(1)},${(topY - 1 + j()).toFixed(1)}`,
+    `L ${(w - 3 + j()).toFixed(1)},${(botY + j()).toFixed(1)}`,
+    `Q ${(w * 0.55).toFixed(1)},${(botY + 3.5 + j()).toFixed(1)} ${(w * 0.24).toFixed(1)},${(botY + j()).toFixed(1)}`,
+    `T ${(3 + j()).toFixed(1)},${(botY + 1 + j()).toFixed(1)}`,
+    'Z',
+  ].join(' ');
 }
 
 /**

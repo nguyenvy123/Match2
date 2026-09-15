@@ -584,7 +584,37 @@ test('đủ 7 ly, id duy nhất', () => {
   eq(new Set(CUPS.map((c) => c.id)).size, 7);
 });
 
-test('mọi ly có màu chữ tương phản đủ với nền', () => {
+test('mọi cặp ly đủ khác biệt về màu để phân biệt bằng mắt', () => {
+  // Màu giờ là tín hiệu DUY NHẤT phân biệt ly (không còn chữ cái in trên ly),
+  // nên hai ly bất kỳ phải cách nhau đủ xa trong không gian màu.
+  const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+  /** Khoảng cách màu có trọng số theo độ nhạy của mắt người. */
+  const distance = (h1, h2) => {
+    const [r1, g1, b1] = rgb(h1);
+    const [r2, g2, b2] = rgb(h2);
+    const rMean = (r1 + r2) / 2;
+    const dr = r1 - r2;
+    const dg = g1 - g2;
+    const db = b1 - b2;
+    return Math.sqrt(
+      (2 + rMean / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rMean) / 256) * db * db,
+    );
+  };
+
+  const MIN_DISTANCE = 100;
+  for (let i = 0; i < CUPS.length; i++) {
+    for (let j = i + 1; j < CUPS.length; j++) {
+      const d = distance(CUPS[i].hex, CUPS[j].hex);
+      ok(d >= MIN_DISTANCE,
+        `${CUPS[i].name} vs ${CUPS[j].name}: khoảng cách màu ${d.toFixed(0)} < ${MIN_DISTANCE}`);
+    }
+  }
+});
+
+test('mọi ly đủ tương phản với nền giấy trắng', () => {
+  // Viền mực đen giúp ly nổi lên, nhưng mảng màu cũng nên tách khỏi nền trắng
+  // để người chơi nhận ra ly ngay cả khi nhìn lướt.
   const lum = (hex) => {
     const v = [1, 3, 5].map((i) => {
       const c = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -593,9 +623,8 @@ test('mọi ly có màu chữ tương phản đủ với nền', () => {
     return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
   };
   CUPS.forEach((cup) => {
-    const [a, b] = [lum(cup.hex), lum(cup.ink)].sort((x, y) => y - x);
-    const ratio = (a + 0.05) / (b + 0.05);
-    ok(ratio >= 4.5, `ly ${cup.id}: tương phản ${ratio.toFixed(2)} < 4.5`);
+    const ratio = (1.0 + 0.05) / (lum(cup.hex) + 0.05);
+    ok(ratio >= 1.3, `${cup.name}: tương phản với nền trắng ${ratio.toFixed(2)} < 1.3`);
   });
 });
 

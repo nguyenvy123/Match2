@@ -33,6 +33,18 @@ await page.screenshot({ path: `${SHOTS}/01-intro.png` });
 await page.click('.panel .btn');
 await page.waitForSelector('.overlay', { state: 'hidden' });
 check(await page.locator('.slot').count() === 3, 'round 1 có 3 ô');
+
+// Bố cục hai hàng: ly người chơi đặt ở trên mặt bàn, ly quản trò giấu ở dưới.
+check(await page.locator('.table__row--play .slot').count() === 3, 'hàng trên có 3 ô đặt ly');
+check(await page.locator('.hidden-slot').count() === 3, 'hàng dưới có 3 ly ẩn');
+check(await page.locator('.table__surface').count() === 1, 'có mặt bàn ngăn giữa hai hàng');
+const rowsOrder = await page.evaluate(() => {
+  const play = document.querySelector('.table__row--play').getBoundingClientRect();
+  const surf = document.querySelector('.table__surface').getBoundingClientRect();
+  const hid = document.querySelector('.table__row--hidden').getBoundingClientRect();
+  return play.bottom <= surf.bottom && surf.top <= hid.top;
+});
+check(rowsOrder, 'thứ tự dọc đúng: hàng đặt ly → mặt bàn → hàng ly ẩn');
 check(await page.locator('.tray-cup').count() === 3, 'round 1 có 3 ly');
 check(await page.locator('.mode-badge').isHidden(), 'round 1 ẩn nhãn Đặt đôi');
 await page.screenshot({ path: `${SHOTS}/02-round1.png` });
@@ -58,12 +70,35 @@ await page.waitForTimeout(700);
 if (firstVerdict === 'ONE') {
   check(await page.locator('.slot[data-slot="0"]').getAttribute('data-status') === 'LOCKED', 'ô đúng bị khóa');
   check(await page.locator('.tray-cup[data-cup="A"]').getAttribute('data-used') === 'true', 'ly đã chốt bị gạch khỏi khay');
+  // Đặt đúng thì ly ẩn ở hàng dưới lật lên thành ly thật cùng màu.
+  const pair = await page.evaluate(() => {
+    const top = document.querySelector('.slot[data-status="LOCKED"] .cup');
+    const bot = document.querySelector('.hidden-slot[data-solved="true"] .cup');
+    return {
+      same: top?.getAttribute('aria-label') === bot?.getAttribute('aria-label'),
+      stillHidden: bot?.classList.contains('cup--hidden'),
+    };
+  });
+  check(pair.same, 'ly ẩn hàng dưới lật lên khớp với ly vừa đặt đúng');
+  check(pair.stillHidden === false, 'ly hàng dưới không còn ở dạng nét đứt');
   check(await page.locator('.slot__lock').count() === 0, 'không còn icon ổ khóa');
   check(await page.locator('.slot[data-status="LOCKED"] .slot__ticks').count() === 1, 'ô đã chốt vẫn có nét đánh dấu');
 } else {
   check(await page.locator('.slot[data-slot="0"]').getAttribute('data-status') === 'EMPTY', 'ô sai trở lại trống');
   check(await page.locator('.tray-cup[data-cup="A"]').isEnabled(), 'ly sai vẫn dùng được');
   check(await page.locator('.miss').count() === 0, 'KHÔNG hiển thị dấu vết đoán sai — người chơi phải tự nhớ');
+
+  // Đặt sai thì ly ẩn ở hàng dưới phải giữ nguyên nét đứt, không lật.
+  await page.waitForTimeout(1400);
+  const wrongPair = await page.evaluate(() => {
+    const bot = document.querySelectorAll('.hidden-slot')[0];
+    return {
+      solved: bot?.dataset.solved,
+      hidden: bot?.querySelector('.cup')?.classList.contains('cup--hidden'),
+    };
+  });
+  check(wrongPair.solved === 'false', 'đặt sai thì ô hàng dưới không đánh dấu đã giải');
+  check(wrongPair.hidden === true, 'đặt sai thì ly hàng dưới giữ nguyên nét đứt');
 }
 
 console.log('\n--- Bàn phím ---');
@@ -152,7 +187,10 @@ async function solveRound() {
       await page.click(`.tray-cup[data-cup="${mv.cup}"]`);
       await page.click(`.slot[data-slot="${mv.slot}"]`);
     }
-    await page.waitForTimeout(640);
+    // Đủ dài để animation lật ly ẩn hoàn tất khi lượt này giải xong round
+    // (620ms delay + 700ms animation = 1320ms) — round chỉ mở màn chuyển tiếp
+    // sau mốc đó, không phải ngay khi phán xử vừa hiện.
+    await page.waitForTimeout(1360);
 
     // Ghi nhớ ô nào vẫn còn trống sau lượt này = ly đó trượt.
     const stillOpen = await page.evaluate(() =>
@@ -168,7 +206,7 @@ async function solveRound() {
 }
 
 await solveRound();
-await page.waitForSelector('.overlay:not([hidden])', { timeout: 4000 });
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 12000 });
 check((await page.locator('.panel__title').textContent()).includes('Round 1'), 'hiện màn kết thúc round 1');
 check(await page.locator('.stars').count() === 1, 'có xếp hạng sao');
 await page.screenshot({ path: `${SHOTS}/04-round-cleared.png` });
@@ -180,7 +218,7 @@ check(await page.locator('.tray-cup').count() === 4, 'round 2 có 4 ly');
 check(await page.locator('.verdict').count() === 0, 'round mới không treo lại phán xử cũ');
 
 await solveRound();
-await page.waitForSelector('.overlay:not([hidden])', { timeout: 6000 });
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 12000 });
 const unlockText = await page.locator('.panel__body').textContent();
 check(unlockText.includes('Đặt đôi bắt đầu từ đây'), 'báo Đặt đôi bắt buộc trước round 3');
 await page.screenshot({ path: `${SHOTS}/05-unlock.png` });
@@ -202,8 +240,14 @@ check(await page.locator('.slot[data-slot="0"] .slot__cup').count() === 1, 'ly �
 check(await page.locator('.slot[data-slot="0"] .slot__ghost').count() === 0, 'ô đang giữ ly không còn dấu ?');
 // Ly đang giữ phải vô hiệu trong khay, nếu không người chơi chọn lại chính nó
 // làm ly thứ hai và lách được luật bắt buộc đặt đôi.
-const heldId = await page.locator('.slot[data-slot="0"] .slot__cup').getAttribute('aria-label');
-const heldCupId = heldId.match(/Ly (\w)/)[1];
+// Ly không còn in chữ cái — tra data-cup qua khớp aria-label (tên màu) với
+// các ly trong khay, thay vì trích mã từ nhãn.
+const heldLabel = await page.locator('.slot[data-slot="0"] .slot__cup').getAttribute('aria-label');
+const heldCupId = await page.evaluate((label) => {
+  const match = [...document.querySelectorAll('.tray-cup')]
+    .find((t) => t.getAttribute('aria-label').startsWith(label));
+  return match?.dataset.cup;
+}, heldLabel);
 check(await page.locator(`.tray-cup[data-cup="${heldCupId}"]`).isDisabled(), 'ly đang giữ bị vô hiệu trong khay');
 check(await page.locator(`.tray-cup[data-cup="${heldCupId}"]`).getAttribute('data-held') === 'true', 'ly đang giữ được đánh dấu held');
 await page.screenshot({ path: `${SHOTS}/06-pairing.png` });
@@ -337,7 +381,7 @@ for (const [w, h, name] of [[375, 780, 'mobile'], [768, 900, 'tablet'], [1440, 9
 console.log('\n--- Round 4, bàn đặt ly rộng nhất ---');
 await page.setViewportSize({ width: 1280, height: 860 });
 await solveRound();
-await page.waitForSelector('.overlay:not([hidden])', { timeout: 10000 });
+await page.waitForSelector('.overlay:not([hidden])', { timeout: 16000 });
 await page.click('.panel .btn');
 await page.waitForSelector('.overlay', { state: 'hidden' });
 check(await page.locator('.slot').count() === 6, 'round 4 có 6 ô');
@@ -376,6 +420,20 @@ while (Number((await page.locator('.stat__value').first().textContent()).split('
 }
 
 check(await page.locator('.slot').count() === 3, 'round 5 là bàn tập 3 ô');
+
+// .table dùng flex-column cho bố cục 2 hàng của kịch bản đặt ly — kịch bản
+// hoán đổi chỉ có 1 hàng nên các ô phải được bọc trong .table__row, nếu
+// không chúng bị xếp dọc theo trục chính thay vì nằm ngang.
+const swapTops = await page.evaluate(() =>
+  [...document.querySelectorAll('.slot')].map((s) => Math.round(s.getBoundingClientRect().top)));
+check(swapTops.every((t) => Math.abs(t - swapTops[0]) < 5),
+  'các ô kịch bản hoán đổi nằm cùng một hàng ngang');
+
+// Kịch bản hoán đổi cũng dùng bố cục hai hàng + mặt bàn như kịch bản đặt ly.
+check(await page.locator('.table__surface').count() === 1, 'round hoán đổi có mặt bàn');
+check(await page.locator('.hidden-slot').count() === 3, 'round hoán đổi có hàng ly ẩn ở dưới');
+check(await page.locator('.hidden-slot[data-solved="true"]').count() === 0,
+  'ly ẩn chưa lật khi round chưa giải xong');
 check(await page.locator('.slot .slot__cup').count() === 3, 'bàn đã đầy ly ngay từ đầu');
 check(await page.locator('.tray').isHidden(), 'khay dự phòng bị ẩn ở kịch bản hoán đổi');
 check(await page.locator('.swap-bar').isVisible(), 'hiện thanh điều khiển hoán đổi');

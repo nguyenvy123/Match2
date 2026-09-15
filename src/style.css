@@ -201,10 +201,101 @@ body::before {
   scrollbar-width: thin;
 }
 
+/* Bàn chơi kịch bản đặt ly: hai hàng chồng dọc, ngăn bởi mặt bàn.
+   Hàng trên là ly người chơi đặt, hàng dưới là ly quản trò giấu. */
 .table {
   display: flex;
-  gap: clamp(var(--space-xs), 2vw, var(--space-lg));
+  flex-direction: column;
   margin: 0 auto;
+  min-width: min-content;
+}
+
+.table__row {
+  display: flex;
+  gap: clamp(var(--space-xs), 2vw, var(--space-lg));
+  justify-content: center;
+}
+
+/* Kéo hai hàng sát mặt bàn để đối chiếu từng cặp dễ hơn */
+.table__row--play { align-items: flex-end; }
+.table__row--hidden { padding-top: 4px; }
+
+/* Mặt bàn — dải dày, nét mực đậm, kéo dài hết chiều ngang bàn chơi */
+/* Mặt bàn dày hơn hai hàng ô một chút để nó đọc ra là tấm ván, không phải
+   gạch ngang. Nhô ra hai bên đúng một khoảng nhỏ — nhô nhiều thì trông như
+   đường kẻ chạy ngang màn hình.
+
+   `width: 100%` của .table (không phải của khung cuộn) nên khi bàn rộng hơn
+   màn hình, mặt bàn kéo dài hết bàn thay vì bị cắt ngang ở mép khung nhìn. */
+.table__surface {
+  display: block;
+  width: calc(100% + var(--space-md));
+  margin: -4px calc(var(--space-md) / -2) 0;
+  height: clamp(26px, 3.4vw, 40px);
+  overflow: visible;
+}
+
+.table__surface path {
+  fill: var(--paper-alt);
+  stroke: var(--ink);
+  stroke-width: 4.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Ô ly ẩn ở hàng dưới — chỉ để nhìn, không tương tác */
+.hidden-slot {
+  width: calc(var(--cup-w) * 1.28);
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  pointer-events: none;
+}
+
+.hidden-slot__frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1.32;
+  display: grid;
+  place-items: center;
+}
+
+/* Vị trí đã chốt: ly ẩn lật lên thành ly thật, khung chuyển xanh xác nhận */
+.hidden-slot[data-solved='true'] .slot__outline path {
+  stroke: var(--verdict-one);
+  stroke-dasharray: none;
+  opacity: 0.5;
+}
+
+.hidden-slot .cup { width: 74%; height: auto; }
+
+/* Lật ly: xoay quanh trục ngang như đang nhấc ly lên cho xem.
+   Chậm và hiện dần — đây là khoảnh khắc xác nhận "đúng rồi", đáng để người
+   chơi nhìn. Thời lượng phải khớp REVEAL_ANIM_MS trong ui.js. */
+@keyframes cup-reveal {
+  0%   { transform: rotateX(-90deg) scale(0.88); opacity: 0; }
+  30%  { opacity: 0.55; }
+  62%  { transform: rotateX(14deg) scale(1.07); opacity: 1; }
+  82%  { transform: rotateX(-6deg) scale(0.98); }
+  93%  { transform: rotateX(2deg) scale(1.01); }
+  100% { transform: rotateX(0) scale(1); opacity: 1; }
+}
+
+.hidden-slot .is-revealing {
+  animation: cup-reveal 700ms var(--ease-out);
+  transform-origin: center bottom;
+}
+
+/* Khung ô cũng sáng dần theo, không bật xanh đột ngột */
+@keyframes slot-confirm {
+  from { stroke: var(--grey-mid); }
+  to   { stroke: var(--verdict-one); }
+}
+
+.hidden-slot[data-solved='true'] .slot__outline path {
+  animation: slot-confirm 700ms var(--ease-out);
 }
 
 .slot {
@@ -232,6 +323,28 @@ body::before {
   aspect-ratio: 1 / 1.32;
   display: grid;
   place-items: center;
+}
+
+/* Ô trống ở hàng đặt ly: hiện dấu + mờ làm gợi ý "đặt ly vào đây".
+   Ẩn đi khi đang có ly trong ô (kể cả ly tạm lúc báo Sai). */
+.table__row--play .slot[data-status='EMPTY'] .slot__frame:has(.cup)::after {
+  display: none;
+}
+
+.table__row--play .slot[data-status='EMPTY'] .slot__frame::after {
+  content: '+';
+  font-family: var(--font-display);
+  font-size: calc(var(--cup-w) * 0.6);
+  line-height: 1;
+  color: var(--grey-light);
+  transition: color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-bounce);
+}
+
+.table__row--play .slot:not(:disabled):hover .slot__frame::after,
+.table__row--play .slot[data-hover='true'] .slot__frame::after {
+  color: var(--grey-dark);
+  transform: scale(1.2);
 }
 
 .slot__outline {
@@ -365,21 +478,12 @@ body::before {
   stroke-linejoin: round;
 }
 
-/* Nét ngăn thân với cuống — mảnh hơn viền ngoài, như nét phụ vẽ sau */
+/* Nét vành miệng — mảnh hơn viền ngoài, như nét phụ vẽ sau */
 .cup__waist {
   fill: none;
   stroke: var(--ink);
   stroke-width: 2.4;
   stroke-linecap: round;
-}
-
-.cup__letter {
-  font-family: var(--font-display);
-  font-weight: 700;
-  text-anchor: middle;
-  dominant-baseline: central;
-  letter-spacing: 0.04em;
-  user-select: none;
 }
 
 /* ---------- Bảng phán xử ---------- */
@@ -822,16 +926,14 @@ body::before {
   flex-wrap: wrap;
 }
 
+/* Chip màu trong bảng lịch sử — không còn chữ nên to hơn một chút để phân
+   biệt màu dễ, và cao hơn rộng cho giống hình chiếc ly. */
 .cup-chip {
-  display: grid;
-  place-items: center;
-  width: 1.55em;
-  height: 1.55em;
-  font-family: var(--font-display);
-  font-weight: 700;
+  display: block;
+  width: 1.5em;
+  height: 1.8em;
   font-size: calc(var(--text-label) * 0.85);
-  line-height: 1;
-  outline: 2px solid var(--ink);
+  outline: 2.5px solid var(--ink);
   outline-offset: -1px;
 }
 
